@@ -1,0 +1,27 @@
+[Bb]uild
+[Dd]ebug
+
+# clangd
+.cache
+
+# IDE specific files
+# JetBrains IDEs (CLion, etc.)
+.idea/
+
+# Visual Studio
+.vscode/
+*.vcxproj
+*.vcxproj.filters
+*.user
+*.suo
+*.userosscache
+*.sln
+
+# CodeBlocks
+*.cbp
+*.layout
+
+# Eclipse
+*.project
+*.cproject
+.settings/
