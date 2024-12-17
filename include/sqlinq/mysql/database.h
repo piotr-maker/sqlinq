@@ -7,20 +7,19 @@
 #include <cstring>
 #include <ctime>
 #include <expected>
-#include <iomanip>
+#include <mysql/mysql.h>
+#include <new>
 #include <optional>
-#include <sstream>
+#include <stdexcept>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 #include <vector>
-#include <mysql/mysql.h>
 
-#include "error.h"
 #include "sqlinq/type_traits.hpp"
+#include "sqlinq/types.h"
 
 namespace sqlinq::mysql {
 
@@ -86,32 +85,23 @@ public:
     bind_[index].length = 0;
   }
 
-  [[nodiscard]]
-  inline int execute() {
+  inline void execute() {
     if (mysql_stmt_execute(stmt_)) {
-      return mysql_stmt_errno(stmt_);
+      throw std::runtime_error(mysql_stmt_error(stmt_));
     }
-    return 0;
   }
 
-  [[nodiscard]]
-  int prepare(std::string_view sql) noexcept {
-    if (stmt_ == nullptr) {
-      return -1;
-    }
+  void prepare(std::string_view sql) {
     if (mysql_stmt_prepare(stmt_, sql.data(), sql.size())) {
-      return mysql_stmt_errno(stmt_);
+      throw std::runtime_error(mysql_stmt_error(stmt_));
     }
     memset(bind_, 0, sizeof(bind_));
-    return 0;
   }
 
-  [[nodiscard]]
-  inline int step() noexcept {
+  inline void step() {
     if (mysql_stmt_bind_param(stmt_, bind_)) {
-      return mysql_stmt_errno(stmt_);
+      throw std::runtime_error(mysql_stmt_error(stmt_));
     }
-    return 0;
   }
 
   statement &operator=(statement &&) = default;
@@ -126,7 +116,12 @@ private:
 
 template <std::size_t K, std::size_t N> class result {
 public:
-  result(statement<N> &stmt) : stmt_(stmt) {}
+  result(statement<N> &stmt) : stmt_(stmt) {
+    result_ = mysql_stmt_result_metadata(stmt_.stmt_);
+    if (!result_) {
+      throw std::runtime_error(mysql_stmt_error(stmt_.stmt_));
+    }
+  }
 
   ~result() { mysql_stmt_free_result(stmt_.stmt_); }
 
@@ -138,6 +133,11 @@ public:
     column(index, var.value());
   }
 
+  template <std::size_t M, std::size_t D>
+  inline void column(int index, sqlinq::decimal<M, D> &value) noexcept {
+    bind_[index].buffer_type = MYSQL_TYPE_DECIMAL;
+    bind_[index].buffer = (char *)&value;
+  }
   /*void column(int index, std::time_t &time) noexcept {*/
   /*  struct std::tm tm;*/
   /*  const char *datetime = (const char *)sqlite3_column_text(stmt_, index);*/
@@ -146,15 +146,14 @@ public:
   /*  time = mktime(&tm);*/
   /*}*/
 
-  template <std::integral T>
-  inline void column(int index, T &value) noexcept {
+  template <std::integral T> inline void column(int index, T &value) noexcept {
     if constexpr (sizeof(T) == 1) {
       bind_[index].buffer_type = MYSQL_TYPE_TINY;
-    } else if(sizeof(T) == 2) {
+    } else if (sizeof(T) == 2) {
       bind_[index].buffer_type = MYSQL_TYPE_SHORT;
-    } else if(sizeof(T) == 4) {
+    } else if (sizeof(T) == 4) {
       bind_[index].buffer_type = MYSQL_TYPE_LONG;
-    } else if(sizeof(T) == 8) {
+    } else if (sizeof(T) == 8) {
       bind_[index].buffer_type = MYSQL_TYPE_LONGLONG;
     }
     bind_[index].buffer = (char *)&value;
@@ -163,32 +162,29 @@ public:
   inline void column(int index, float &value) noexcept {
     bind_[index].buffer_type = MYSQL_TYPE_FLOAT;
     bind_[index].buffer = (char *)&value;
-   }
+  }
 
   inline void column(int index, double &value) noexcept {
     bind_[index].buffer_type = MYSQL_TYPE_DOUBLE;
     bind_[index].buffer = (char *)&value;
-   }
+  }
 
   inline void column(int index, std::string &text) {
     text.resize(255);
     bind_[index].buffer_type = MYSQL_TYPE_STRING;
     bind_[index].buffer = (char *)text.data();
     bind_[index].buffer_length = text.size();
-   }
-
-  template <typename Tuple> void column_for_each(Tuple &tup) {
-    constexpr std::size_t tup_size =
-        std::tuple_size_v<std::remove_reference_t<Tuple>>;
-    memset(bind_, 0, sizeof(bind_));
-    column_for_each_impl(tup, std::make_index_sequence<tup_size>{});
   }
 
-  inline int bind() {
+  template <typename Tuple> void bind_for_each(Tuple &tup) {
+    constexpr std::size_t tup_size =
+        std::tuple_size_v<std::remove_reference_t<Tuple>>;
+    assert(mysql_num_fields(result_) == tup_size && "Invalid column count to bind");
+    memset(bind_, 0, sizeof(bind_));
+    bind_for_each_impl(tup, std::make_index_sequence<tup_size>{});
     if (mysql_stmt_bind_result(stmt_.stmt_, bind_)) {
-      return mysql_stmt_errno(stmt_.stmt_);
+      throw std::runtime_error(mysql_stmt_error(stmt_.stmt_));
     }
-    return 0;
   }
 
   inline int fetch() { return mysql_stmt_fetch(stmt_.stmt_); }
@@ -203,7 +199,7 @@ private:
   statement<N> &stmt_;
 
   template <typename Tuple, std::size_t... Idx>
-  void column_for_each_impl(Tuple &tup, std::index_sequence<Idx...>) {
+  void bind_for_each_impl(Tuple &tup, std::index_sequence<Idx...>) {
     (column(Idx, std::get<Idx>(tup)), ...);
   }
 };
@@ -216,20 +212,14 @@ public:
   database(database &&) = default;
   database(const database &) = delete;
 
-  auto exec(const char *sql) -> std::error_code {
-    return exec(sql, std::make_tuple());
-  }
+  void exec(const char *sql) { exec(sql, std::make_tuple()); }
 
-  template <class Tuple>
-  auto exec(const char *sql, Tuple &&tup) -> std::error_code {
+  template <class Tuple> void exec(const char *sql, Tuple &&tup) {
     static_assert(is_tuple_v<std::remove_reference_t<Tuple>>,
                   "Template type have to be std::tuple");
     int rc;
     statement<std::tuple_size_v<std::remove_reference_t<Tuple>>> stmt{*this};
-    rc = stmt.prepare(sql);
-    if (rc != 0) {
-      return mysql::error::make_error_code(rc);
-    }
+    stmt.prepare(sql);
     std::apply(
         [&stmt](auto &&...args) {
           int i = 0;
@@ -237,100 +227,80 @@ public:
         },
         std::forward<Tuple>(tup));
 
-    rc = stmt.step();
-    if (rc != 0)
-      return mysql::error::make_error_code(rc);
-    rc = stmt.execute();
-    if (rc != 0)
-      return mysql::error::make_error_code(rc);
-    return std::error_code{};
+    stmt.step();
+    stmt.execute();
   }
 
   template <class Entity>
-  auto exec_res(const char *sql)
-      -> std::expected<std::vector<Entity>, std::error_code> {
+  auto exec_res(const char *sql) -> std::vector<Entity> {
     auto tup = std::make_tuple();
     return exec_res<Entity>(sql, tup);
   }
 
   template <class Entity, class Tuple>
-  auto exec_res(const char *sql, Tuple &&tup)
-      -> std::expected<std::vector<Entity>, std::error_code> {
+  auto exec_res(const char *sql, Tuple &&tup) -> std::vector<Entity> {
     static_assert(is_tuple_v<std::remove_reference_t<Tuple>>,
                   "Template type have to be std::tuple");
-    int rc;
     Entity entity;
     std::vector<Entity> entities;
 
     constexpr std::size_t bind_tuple_size =
         std::tuple_size_v<std::remove_reference_t<Tuple>>;
     statement<bind_tuple_size> stmt{*this};
-    rc = stmt.prepare(sql);
-    if (rc != 0) {
-      return std::unexpected(mysql::error::make_error_code(rc));
+    stmt.prepare(sql);
+    std::apply(
+        [&stmt](auto &&...args) {
+          int i = 0;
+          (stmt.bind(i++, std::forward<decltype(args)>(args)), ...);
+        },
+        std::forward<Tuple>(tup));
+
+    stmt.step();
+    stmt.execute();
+    auto params = structure_to_tuple(entity);
+    result<std::tuple_size_v<decltype(params)>, bind_tuple_size> res{stmt};
+    res.bind_for_each(params);
+    while(1) {
+      int status = res.fetch();
+      if (status == 1 || status == MYSQL_NO_DATA)
+        break;
+      entity = to_struct<Entity>(params);
+      entities.push_back(entity);
     }
-    /*std::apply(*/
-    /*    [&stmt](auto &&...args) {*/
-    /*      int i = 0;*/
-    /*      (stmt.bind(i++, std::forward<decltype(args)>(args)), ...);*/
-    /*    },*/
-    /*    std::forward<Tuple>(tup));*/
-    /**/
-    /*auto params = structure_to_tuple(entity);*/
-    /*result<std::tuple_size_v<decltype(params)>, bind_tuple_size> res{stmt};*/
-    /*res.column_for_each(params);*/
-    /*rc = res.step();*/
-    /*if (rc != 0) {*/
-    /*  return std::unexpected(mysql::error::make_error_code(rc));*/
-    /*}*/
-    /*while (res.fetch() != 0) {*/
-    /*  entity = to_struct<Entity>(params);*/
-    /*  entities.push_back(entity);*/
-    /*}*/
     return entities;
   }
 
   template <class Tuple>
     requires is_tuple_v<Tuple>
-  auto exec_res(const char *sql)
-      -> std::expected<std::vector<Tuple>, std::error_code> {
-    int rc;
+  auto exec_res(const char *sql) -> std::vector<Tuple> {
     Tuple tup;
     std::vector<Tuple> records;
 
     statement<0> stmt{*this};
-    rc = stmt.prepare(sql);
-    if (rc != 0) {
-      return std::unexpected(mysql::error::make_error_code(rc));
-    }
+    stmt.prepare(sql);
+    stmt.execute();
     result<std::tuple_size_v<Tuple>, 0> res{stmt};
-    res.column_for_each(tup);
-    rc = res.bind();
-    if (rc != 0) {
-      return std::unexpected(mysql::error::make_error_code(rc));
-    }
-    rc = stmt.execute();
-    if (rc != 0) {
-      return std::unexpected(mysql::error::make_error_code(rc));
-    }
-    while (res.fetch() == 0) {
+    res.bind_for_each(tup);
+    while(1) {
+      int status = res.fetch();
+      if (status == 1 || status == MYSQL_NO_DATA)
+        break;
       records.push_back(tup);
     }
     return records;
   }
 
-  inline int connect(const char *host, const char *user,
-                     const char *passwd, const char* db) noexcept {
+  inline void connect(const char *host, const char *user, const char *passwd,
+                      const char *db) {
     db_ = mysql_init(NULL);
     if (db_ == NULL) {
-      return mysql_errno(db_);
+      throw std::bad_alloc();
     }
     db_ = mysql_real_connect(db_, host, user, passwd, db, 0, NULL, 0);
     if (db_ == NULL) {
       disconnect();
-      return mysql_errno(db_);
+      throw std::runtime_error(mysql_error(db_));
     }
-    return 0;
   }
 
   inline void disconnect() noexcept {
@@ -339,6 +309,8 @@ public:
       db_ = nullptr;
     }
   }
+
+  inline bool is_connected() const noexcept { return db_ != nullptr; }
 
   inline int64_t last_inserted_rowid() noexcept { return mysql_insert_id(db_); }
 
@@ -352,9 +324,13 @@ private:
 };
 
 template <std::size_t N>
-statement<N>::statement(database &db) {
-  if(db.db_) {
+statement<N>::statement(database &db) : stmt_(nullptr) {
+  if (db.db_) {
     stmt_ = mysql_stmt_init(db.db_);
+  }
+
+  if (stmt_ == nullptr) {
+    throw std::bad_alloc();
   }
 }
 

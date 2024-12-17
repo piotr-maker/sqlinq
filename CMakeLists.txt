@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 project(sqlinq VERSION 0.1.0)
 
-set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
 find_package(PkgConfig REQUIRED)
 find_package(SQLite3 REQUIRED)
@@ -14,9 +14,7 @@ if(SQLINQ_BUILD_EXAMPLES)
 endif()
 
 add_library(${PROJECT_NAME}
-  src/mysql/error.cpp
   src/sqlite/database.cpp
-  src/sqlite/error.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC

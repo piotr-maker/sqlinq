@@ -8,15 +8,14 @@
 #include <iomanip>
 #include <optional>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
-#include "error.h"
 #include "sqlinq/type_traits.hpp"
 #include "sqlinq/types/decimal.hpp"
 #include <sqlite3.h>
@@ -38,14 +37,16 @@ public:
     }
     int rc = sqlite3_bind_null(stmt_, index);
     if (rc != SQLITE_OK) {
-      throw rc;
+      throw std::runtime_error(
+          std::string{"sqlite3::bind: ", sqlite3_errstr(rc)});
     }
   }
 
   inline void bind(int index, std::time_t time) {
     int rc = sqlite3_bind_int64(stmt_, index, time);
     if (rc != SQLITE_OK) {
-      throw rc;
+      throw std::runtime_error(
+          std::string{"sqlite3::bind: ", sqlite3_errstr(rc)});
     }
   }
 
@@ -54,21 +55,24 @@ public:
     static_assert(true, "Need to implement this");
     int rc = sqlite3_bind_double(stmt_, index, value);
     if (rc != SQLITE_OK) {
-      throw rc;
+      throw std::runtime_error(
+          std::string{"sqlite3::bind: ", sqlite3_errstr(rc)});
     }
   }
 
   template <std::integral T> inline void bind(int index, T value) {
     int rc = sqlite3_bind_int64(stmt_, index, value);
     if (rc != SQLITE_OK) {
-      throw rc;
+      throw std::runtime_error(
+          std::string{"sqlite3::bind: ", sqlite3_errstr(rc)});
     }
   }
 
   template <std::floating_point T> inline void bind(int index, T value) {
     int rc = sqlite3_bind_double(stmt_, index, value);
     if (rc != SQLITE_OK) {
-      throw rc;
+      throw std::runtime_error(
+          std::string{"sqlite3::bind: ", sqlite3_errstr(rc)});
     }
   }
 
@@ -77,6 +81,8 @@ public:
     std::string_view sv = std::forward<T>(text);
     rc = sqlite3_bind_text(stmt_, index, sv.data(), sv.size(), nullptr);
     if (rc != SQLITE_OK) {
+      throw std::runtime_error(
+          std::string{"sqlite3::bind: ", sqlite3_errstr(rc)});
       throw rc;
     }
   }
@@ -153,42 +159,37 @@ public:
   database(database &&) = default;
   database(const database &) = delete;
 
-  auto exec(const char *sql) -> std::error_code {
-    return exec(sql, std::make_tuple());
+  void exec(const char *sql) {
+    exec(sql, std::make_tuple());
   }
 
-  template <class Tuple>
-  auto exec(const char *sql, Tuple &&tup) -> std::error_code {
+  template <class Tuple> void exec(const char *sql, Tuple &&tup) {
     static_assert(is_tuple_v<std::remove_reference_t<Tuple>>,
                   "Template type have to be std::tuple");
     int rc = SQLITE_OK;
     statement stmt{*this, sql};
-    try {
-      std::apply(
-          [&stmt](auto &&...args) {
-            int i = 1;
-            (stmt.bind(i++, std::forward<decltype(args)>(args)), ...);
-          },
-          std::forward<Tuple>(tup));
-    } catch (int e) {
-      return sqlite::error::make_error_code(e);
-    }
+    std::apply(
+        [&stmt](auto &&...args) {
+          int i = 1;
+          (stmt.bind(i++, std::forward<decltype(args)>(args)), ...);
+        },
+        std::forward<Tuple>(tup));
+
     rc = stmt.step();
-    if (rc != SQLITE_DONE)
-      return sqlite::error::make_error_code(rc);
-    return std::error_code{};
+    if (rc != SQLITE_DONE) {
+      throw std::runtime_error(
+          std::string{"sqlite3::exec: ", sqlite3_errstr(rc)});
+    }
   }
 
   template <class Entity>
-  auto exec_res(const char *sql)
-      -> std::expected<std::vector<Entity>, std::error_code> {
+  auto exec_res(const char *sql) -> std::vector<Entity> {
     auto tup = std::make_tuple();
     return exec_res<Entity>(sql, tup);
   }
 
   template <class Entity, class Tuple>
-  auto exec_res(const char *sql, Tuple &&tup)
-      -> std::expected<std::vector<Entity>, std::error_code> {
+  auto exec_res(const char *sql, Tuple &&tup) -> std::vector<Entity> {
     static_assert(is_tuple_v<std::remove_reference_t<Tuple>>,
                   "Template type have to be std::tuple");
     int rc;
@@ -196,16 +197,12 @@ public:
     std::vector<Entity> entities;
 
     statement stmt{*this, sql};
-    try {
-      std::apply(
-          [&stmt](auto &&...args) {
-            int i = 1;
-            (stmt.bind(i++, std::forward<decltype(args)>(args)), ...);
-          },
-          std::forward<Tuple>(tup));
-    } catch (int e) {
-      return std::unexpected(sqlite::error::make_error_code(e));
-    }
+    std::apply(
+        [&stmt](auto &&...args) {
+          int i = 1;
+          (stmt.bind(i++, std::forward<decltype(args)>(args)), ...);
+        },
+        std::forward<Tuple>(tup));
 
     auto params = structure_to_tuple(entity);
     while ((rc = stmt.step()) == SQLITE_ROW) {
@@ -213,15 +210,16 @@ public:
       entity = to_struct<Entity>(params);
       entities.push_back(entity);
     }
-    if (rc != SQLITE_DONE)
-      return std::unexpected(sqlite::error::make_error_code(rc));
+    if (rc != SQLITE_DONE) {
+      throw std::runtime_error(
+          std::string{"sqlite3::exec_res: ", sqlite3_errstr(rc)});
+    }
     return entities;
   }
 
   template <class Tuple>
     requires is_tuple_v<Tuple>
-  auto exec_res(const char *sql)
-      -> std::expected<std::vector<Tuple>, std::error_code> {
+  auto exec_res(const char *sql) -> std::vector<Tuple> {
     int rc;
     Tuple tup;
     std::vector<Tuple> records;
@@ -231,8 +229,10 @@ public:
       stmt.column_for_each(tup);
       records.push_back(tup);
     }
-    if (rc != SQLITE_DONE)
-      return std::unexpected(sqlite::error::make_error_code(rc));
+    if (rc != SQLITE_DONE) {
+      throw std::runtime_error(
+          std::string{"sqlite3::exec_res: ", sqlite3_errstr(rc)});
+    }
     return records;
   }
 
