@@ -29,7 +29,7 @@ int main() {
     try {
       jobs = jobs_query.select();
     } catch (const exception &ex) {
-      std::cout << "Failed to delect model entity: " << ex.what() << '\n';
+      std::cout << "Failed to select model entity: " << ex.what() << '\n';
     }
 
     for (const auto job : jobs) {
