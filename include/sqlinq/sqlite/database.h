@@ -30,6 +30,10 @@ public:
 
   ~statement() { sqlite3_finalize(stmt_); }
 
+  template <class T> void bind(int index, T &value) {
+    static_assert(true, "The specified type is not supported by this method");
+  }
+
   template <class T> inline void bind(int index, std::optional<T> value) {
     if (value.has_value()) {
       bind(index, value.value());
@@ -95,6 +99,10 @@ public:
           std::string{"sqlite3::bind: ", sqlite3_errstr(rc)});
       throw rc;
     }
+  }
+
+  template <class T> void column(int index, T &value) {
+    static_assert(true, "The specified type is not supported by this method");
   }
 
   template <class T> void column(int index, std::optional<T> &value) {

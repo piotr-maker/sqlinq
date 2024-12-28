@@ -37,6 +37,10 @@ public:
   statement(statement &&) = default;
   statement(const statement &) = delete;
 
+  template <class T> void bind(int index, T &value) {
+    static_assert(true, "The specified type is not supported by this method");
+  }
+
   template <string_like T> inline void bind(int index, T &&text) noexcept {
     std::string_view sv = std::forward<T>(text);
     std::size_t size = sv.size();
@@ -126,6 +130,10 @@ public:
   result(result &&) = default;
   result(const result &) = delete;
 
+  template <class T> void column(int index, T &value) {
+    static_assert(true, "The specified type is not supported by this method");
+  }
+
   template <class T> void column(int index, std::optional<T> &var) {
     var = T{};
     column(index, var.value());
@@ -191,6 +199,10 @@ public:
     bind_[index].length = &length_[index];
     bind_[index].error = &error_[index];
     bind_[index].is_null = &is_null_[index];
+  }
+
+  template <class T> void fetch(int index, T &value) {
+    static_assert(true, "The specified type is not supported by this method");
   }
 
   template <typename T> inline void fetch(int index, std::optional<T> &var) {
