@@ -17,7 +17,7 @@
 #include <vector>
 
 #include "sqlinq/type_traits.hpp"
-#include "sqlinq/types/decimal.hpp"
+#include <sqlinq/types.h>
 #include <sqlite3.h>
 
 namespace sqlinq::sqlite {
@@ -76,6 +76,16 @@ public:
     }
   }
 
+  inline void bind(int index, blob &&data) {
+    int rc;
+    rc = sqlite3_bind_blob(stmt_, index, data.data(), data.size(), nullptr);
+    if (rc != SQLITE_OK) {
+      throw std::runtime_error(
+          std::string{"sqlite3::bind: ", sqlite3_errstr(rc)});
+      throw rc;
+    }
+  }
+
   template <string_like T> inline void bind(int index, T &&text) {
     int rc;
     std::string_view sv = std::forward<T>(text);
@@ -124,6 +134,15 @@ public:
     assert(sqlite3_column_type(stmt_, index) == SQLITE_FLOAT &&
            "Incorrect column type");
     value = sqlite3_column_double(stmt_, index);
+  }
+
+  inline void column(int index, blob &var) {
+    assert(sqlite3_column_type(stmt_, index) == SQLITE_BLOB &&
+           "Incorrect column type");
+    const char *data = (const char*)sqlite3_column_blob(stmt_, index);
+    std::size_t size = sqlite3_column_bytes(stmt_, index);
+    var.clear();
+    var.insert(var.begin(), data, data + size);
   }
 
   inline void column(int index, std::string &text) {

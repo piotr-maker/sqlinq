@@ -175,6 +175,15 @@ public:
     bind_[index].is_null = &is_null_[index];
   }
 
+  inline void column(int index, blob &data) {
+    bind_[index].buffer_type = MYSQL_TYPE_BLOB;
+    bind_[index].buffer = nullptr;
+    bind_[index].buffer_length = 0;
+    bind_[index].length = &length_[index];
+    bind_[index].error = &error_[index];
+    bind_[index].is_null = &is_null_[index];
+  }
+
   inline void column(int index, std::string &text) {
     bind_[index].buffer_type = MYSQL_TYPE_STRING;
     bind_[index].buffer = nullptr;
@@ -190,6 +199,15 @@ public:
       return;
     }
     fetch(index, var.value());
+  }
+
+  inline void fetch(int index, blob &data) {
+    data.resize(length_[index]);
+    bind_[index].buffer = (char *)data.data();
+    bind_[index].buffer_length = data.size();
+    if (mysql_stmt_fetch_column(stmt_.stmt_, &bind_[index], index, 0)) {
+      throw std::runtime_error(mysql_stmt_error(stmt_.stmt_));
+    }
   }
 
   inline void fetch(int index, std::string &text) {
