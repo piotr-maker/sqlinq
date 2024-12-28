@@ -6,9 +6,7 @@
 #include <cstddef>
 #include <cstring>
 #include <ctime>
-#include <expected>
 #include <mysql/mysql.h>
-#include <new>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -18,8 +16,8 @@
 #include <utility>
 #include <vector>
 
-#include "sqlinq/type_traits.hpp"
 #include "sqlinq/types.h"
+#include "sqlinq/type_traits.hpp"
 
 namespace sqlinq::mysql {
 
@@ -136,7 +134,9 @@ public:
   template <std::size_t M, std::size_t D>
   inline void column(int index, sqlinq::decimal<M, D> &value) noexcept {
     bind_[index].buffer_type = MYSQL_TYPE_DECIMAL;
-    bind_[index].buffer = (char *)&value;
+    bind_[index].buffer = (void *)&value;
+    bind_[index].error = &error_[index];
+    bind_[index].is_null = &is_null_[index];
   }
   /*void column(int index, std::time_t &time) noexcept {*/
   /*  struct std::tm tm;*/
@@ -157,34 +157,66 @@ public:
       bind_[index].buffer_type = MYSQL_TYPE_LONGLONG;
     }
     bind_[index].buffer = (char *)&value;
+    bind_[index].error = &error_[index];
+    bind_[index].is_null = &is_null_[index];
   }
 
   inline void column(int index, float &value) noexcept {
     bind_[index].buffer_type = MYSQL_TYPE_FLOAT;
     bind_[index].buffer = (char *)&value;
+    bind_[index].error = &error_[index];
+    bind_[index].is_null = &is_null_[index];
   }
 
   inline void column(int index, double &value) noexcept {
     bind_[index].buffer_type = MYSQL_TYPE_DOUBLE;
     bind_[index].buffer = (char *)&value;
+    bind_[index].error = &error_[index];
+    bind_[index].is_null = &is_null_[index];
   }
 
   inline void column(int index, std::string &text) {
-    text.resize(255);
     bind_[index].buffer_type = MYSQL_TYPE_STRING;
+    bind_[index].buffer = nullptr;
+    bind_[index].buffer_length = 0;
+    bind_[index].length = &length_[index];
+    bind_[index].error = &error_[index];
+    bind_[index].is_null = &is_null_[index];
+  }
+
+  template <typename T> inline void fetch(int index, std::optional<T> &var) {
+    if (is_null_[index]) {
+      var.reset();
+      return;
+    }
+    fetch(index, var.value());
+  }
+
+  inline void fetch(int index, std::string &text) {
+    text.resize(length_[index]);
     bind_[index].buffer = (char *)text.data();
     bind_[index].buffer_length = text.size();
+    if (mysql_stmt_fetch_column(stmt_.stmt_, &bind_[index], index, 0)) {
+      throw std::runtime_error(mysql_stmt_error(stmt_.stmt_));
+    }
   }
 
   template <typename Tuple> void bind_for_each(Tuple &tup) {
     constexpr std::size_t tup_size =
         std::tuple_size_v<std::remove_reference_t<Tuple>>;
-    assert(mysql_num_fields(result_) == tup_size && "Invalid column count to bind");
+    assert(mysql_num_fields(result_) == tup_size &&
+           "Invalid column count to bind");
     memset(bind_, 0, sizeof(bind_));
     bind_for_each_impl(tup, std::make_index_sequence<tup_size>{});
     if (mysql_stmt_bind_result(stmt_.stmt_, bind_)) {
       throw std::runtime_error(mysql_stmt_error(stmt_.stmt_));
     }
+  }
+
+  template <typename Tuple> void fetch_for_each(Tuple &tup) {
+    constexpr std::size_t tup_size =
+        std::tuple_size_v<std::remove_reference_t<Tuple>>;
+    fetch_for_each_impl(tup, std::make_index_sequence<tup_size>{});
   }
 
   inline int fetch() { return mysql_stmt_fetch(stmt_.stmt_); }
@@ -194,13 +226,20 @@ public:
 
 private:
   MYSQL_RES *result_;
-  MYSQL_FIELD *fields_;
   MYSQL_BIND bind_[K];
   statement<N> &stmt_;
+  my_bool error_[K];
+  my_bool is_null_[K];
+  std::size_t length_[K];
 
   template <typename Tuple, std::size_t... Idx>
   void bind_for_each_impl(Tuple &tup, std::index_sequence<Idx...>) {
     (column(Idx, std::get<Idx>(tup)), ...);
+  }
+
+  template <typename Tuple, std::size_t... Idx>
+  void fetch_for_each_impl(Tuple &tup, std::index_sequence<Idx...>) {
+    (fetch(Idx, std::get<Idx>(tup)), ...);
   }
 };
 
@@ -260,10 +299,11 @@ public:
     auto params = structure_to_tuple(entity);
     result<std::tuple_size_v<decltype(params)>, bind_tuple_size> res{stmt};
     res.bind_for_each(params);
-    while(1) {
+    while (1) {
       int status = res.fetch();
       if (status == 1 || status == MYSQL_NO_DATA)
         break;
+      res.fetch_for_each(params);
       entity = to_struct<Entity>(params);
       entities.push_back(entity);
     }
@@ -281,10 +321,11 @@ public:
     stmt.execute();
     result<std::tuple_size_v<Tuple>, 0> res{stmt};
     res.bind_for_each(tup);
-    while(1) {
+    while (1) {
       int status = res.fetch();
       if (status == 1 || status == MYSQL_NO_DATA)
         break;
+      res.fetch_for_each(tup);
       records.push_back(tup);
     }
     return records;
