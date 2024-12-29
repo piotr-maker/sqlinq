@@ -1,0 +1,23 @@
+#ifndef SQLINQ_CONFIG_HPP_
+#define SQLINQ_CONFIG_HPP_
+
+/*
+ * File generated automatically, do not change
+ */
+
+#define SQLINQ_PLUGIN_MYSQL 1
+#define SQLINQ_PLUGIN_SQLITE 2
+
+#cmakedefine SQLINQ_PLUGIN @SQLINQ_PLUGIN_VALUE@
+
+#if SQLINQ_PLUGIN == SQLINQ_PLUGIN_MYSQL
+#include <sqlinq/mysql/database.h>
+namespace plugin = sqlinq::mysql;
+#elif SQLINQ_PLUGIN == SQLINQ_PLUGIN_SQLITE
+#include <sqlinq/sqlite/database.h>
+namespace plugin = sqlinq::sqlite;
+#else
+  #error "Invalid database plugin"
+#endif
+
+#endif /* SQLINQ_CONFIG_HPP_ */

@@ -1,0 +1,27 @@
+set(SQLINQ_PLUGIN_TYPE MySQL SQLite3)
+set(SQLINQ_PLUGIN SQLite3 CACHE STRING "Database plugin")
+set_property(CACHE SQLINQ_PLUGIN PROPERTY STRINGS ${SQLINQ_PLUGIN_TYPE})
+
+if(NOT ${SQLINQ_PLUGIN} IN_LIST SQLINQ_PLUGIN_TYPE)
+  message(FATAL_ERROR "Database plugin is not set")
+endif()
+
+if(NOT UNIX)
+  message(FATAL_ERROR "Library only available on Unix platform")
+endif()
+
+if(${SQLINQ_PLUGIN} STREQUAL "MySQL")
+  find_package(PkgConfig REQUIRED)
+  set(SQLINQ_PLUGIN_VALUE 1)
+  pkg_check_modules(MYSQL_CLIENT REQUIRED mysqlclient)
+  set(SQLINQ_PLUGIN_INCLUDE_DIRS ${MYSQL_CLIENT_INCLUDE_DIRS})
+  set(SQLINQ_PLUGIN_LIBRARIES ${MYSQL_CLIENT_LIBRARIES})
+endif()
+
+if(${SQLINQ_PLUGIN} STREQUAL "SQLite3")
+  find_package(SQLite3 REQUIRED)
+  set(SQLINQ_PLUGIN_VALUE 2)
+  set(SQLINQ_PLUGIN_INCLUDE_DIRS ${SQLite3_INCLUDE_DIRS})
+  set(SQLINQ_PLUGIN_LIBRARIES ${SQLite3_LIBRARIES})
+endif()
+
