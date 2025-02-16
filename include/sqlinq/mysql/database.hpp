@@ -1,5 +1,5 @@
-#ifndef SQLINQ_MYSQL_DATABASE_H_
-#define SQLINQ_MYSQL_DATABASE_H_
+#ifndef SQLINQ_MYSQL_DATABASE_HPP_
+#define SQLINQ_MYSQL_DATABASE_HPP_
 
 #include <cassert>
 #include <concepts>
@@ -21,21 +21,21 @@
 
 namespace sqlinq::mysql {
 
-class database;
+class Database;
 
-template <std::size_t N> class statement {
+template <std::size_t N> class Statement {
 public:
-  statement(database &db);
+  Statement(Database &db);
 
-  ~statement() {
+  ~Statement() {
     if (stmt_ != nullptr) {
       mysql_stmt_close(stmt_);
       stmt_ = nullptr;
     }
   }
 
-  statement(statement &&) = default;
-  statement(const statement &) = delete;
+  Statement(Statement &&) = default;
+  Statement(const Statement &) = delete;
 
   template <class T> void bind(int index, T &value) {
     static_assert(true, "The specified type is not supported by this method");
@@ -106,29 +106,29 @@ public:
     }
   }
 
-  statement &operator=(statement &&) = default;
-  statement &operator=(const statement &other) = delete;
+  Statement &operator=(Statement &&) = default;
+  Statement &operator=(const Statement &other) = delete;
 
 private:
-  template <std::size_t, std::size_t> friend class result;
+  template <std::size_t, std::size_t> friend class Result;
 
   MYSQL_STMT *stmt_;
   MYSQL_BIND bind_[N];
 };
 
-template <std::size_t K, std::size_t N> class result {
+template <std::size_t K, std::size_t N> class Result {
 public:
-  result(statement<N> &stmt) : stmt_(stmt) {
+  Result(Statement<N> &stmt) : stmt_(stmt) {
     result_ = mysql_stmt_result_metadata(stmt_.stmt_);
     if (!result_) {
       throw std::runtime_error(mysql_stmt_error(stmt_.stmt_));
     }
   }
 
-  ~result() { mysql_stmt_free_result(stmt_.stmt_); }
+  ~Result() { mysql_stmt_free_result(stmt_.stmt_); }
 
-  result(result &&) = default;
-  result(const result &) = delete;
+  Result(Result &&) = default;
+  Result(const Result &) = delete;
 
   template <class T> void column(int index, T &value) {
     static_assert(true, "The specified type is not supported by this method");
@@ -183,7 +183,7 @@ public:
     bind_[index].is_null = &is_null_[index];
   }
 
-  inline void column(int index, blob &data) {
+  inline void column(int index, Blob &data) {
     bind_[index].buffer_type = MYSQL_TYPE_BLOB;
     bind_[index].buffer = nullptr;
     bind_[index].buffer_length = 0;
@@ -213,7 +213,7 @@ public:
     fetch(index, var.value());
   }
 
-  inline void fetch(int index, blob &data) {
+  inline void fetch(int index, Blob &data) {
     data.resize(length_[index]);
     bind_[index].buffer = (char *)data.data();
     bind_[index].buffer_length = data.size();
@@ -251,13 +251,13 @@ public:
 
   inline int fetch() { return mysql_stmt_fetch(stmt_.stmt_); }
 
-  result &operator=(result &&) = default;
-  result &operator=(const result &other) = delete;
+  Result &operator=(Result &&) = default;
+  Result &operator=(const Result &other) = delete;
 
 private:
   MYSQL_RES *result_;
   MYSQL_BIND bind_[K];
-  statement<N> &stmt_;
+  Statement<N> &stmt_;
   my_bool error_[K];
   my_bool is_null_[K];
   std::size_t length_[K];
@@ -273,13 +273,13 @@ private:
   }
 };
 
-class database {
+class Database {
 public:
-  database() {}
-  virtual ~database() { disconnect(); }
+  Database() {}
+  virtual ~Database() { disconnect(); }
 
-  database(database &&) = default;
-  database(const database &) = delete;
+  Database(Database &&) = default;
+  Database(const Database &) = delete;
 
   void exec(const char *sql) { exec(sql, std::make_tuple()); }
 
@@ -287,7 +287,7 @@ public:
     static_assert(is_tuple_v<std::remove_reference_t<Tuple>>,
                   "Template type have to be std::tuple");
     int rc;
-    statement<std::tuple_size_v<std::remove_reference_t<Tuple>>> stmt{*this};
+    Statement<std::tuple_size_v<std::remove_reference_t<Tuple>>> stmt{*this};
     stmt.prepare(sql);
     std::apply(
         [&stmt](auto &&...args) {
@@ -315,7 +315,7 @@ public:
 
     constexpr std::size_t bind_tuple_size =
         std::tuple_size_v<std::remove_reference_t<Tuple>>;
-    statement<bind_tuple_size> stmt{*this};
+    Statement<bind_tuple_size> stmt{*this};
     stmt.prepare(sql);
     std::apply(
         [&stmt](auto &&...args) {
@@ -327,7 +327,7 @@ public:
     stmt.step();
     stmt.execute();
     auto params = structure_to_tuple(entity);
-    result<std::tuple_size_v<decltype(params)>, bind_tuple_size> res{stmt};
+    Result<std::tuple_size_v<decltype(params)>, bind_tuple_size> res{stmt};
     res.bind_for_each(params);
     while (1) {
       int status = res.fetch();
@@ -346,10 +346,10 @@ public:
     Tuple tup;
     std::vector<Tuple> records;
 
-    statement<0> stmt{*this};
+    Statement<0> stmt{*this};
     stmt.prepare(sql);
     stmt.execute();
-    result<std::tuple_size_v<Tuple>, 0> res{stmt};
+    Result<std::tuple_size_v<Tuple>, 0> res{stmt};
     res.bind_for_each(tup);
     while (1) {
       int status = res.fetch();
@@ -385,17 +385,17 @@ public:
 
   inline int64_t last_inserted_rowid() noexcept { return mysql_insert_id(db_); }
 
-  database &operator=(database &&) = default;
-  database &operator=(const database &other) = delete;
+  Database &operator=(Database &&) = default;
+  Database &operator=(const Database &other) = delete;
 
 private:
-  template <std::size_t N> friend class statement;
+  template <std::size_t N> friend class Statement;
 
   MYSQL *db_;
 };
 
 template <std::size_t N>
-statement<N>::statement(database &db) : stmt_(nullptr) {
+Statement<N>::Statement(Database &db) : stmt_(nullptr) {
   if (db.db_) {
     stmt_ = mysql_stmt_init(db.db_);
   }
@@ -407,4 +407,4 @@ statement<N>::statement(database &db) : stmt_(nullptr) {
 
 } // namespace sqlinq::mysql
 
-#endif /* SQLINQ_MYSQL_DATABASE_H_ */
+#endif /* SQLINQ_MYSQL_DATABASE_HPP_ */

@@ -1,7 +1,8 @@
 #include <cstdlib>
 #include <exception>
-#include <sqlinq/query.h>
 #include <sqlinq/config.hpp>
+#include <sqlinq/query.hpp>
+#include <string>
 
 #include "model.hpp"
 #include "record.hpp"
@@ -11,15 +12,15 @@ using namespace sqlinq;
 
 int main() {
 #if SQLINQ_PLUGIN == SQLINQ_PLUGIN_MYSQL
-  mysql::database db;
+  mysql::Database db;
   db.connect("localhost", "piotr", "passwd", "personnel");
 #elif SQLINQ_PLUGIN == SQLINQ_PLUGIN_SQLITE
-  sqlite::database db;
+  sqlite::Database db;
   db.connect("database.db");
 #endif
 
-  query<plugin::database, Jobs> jobs_query{db};
-  query<plugin::database, Employees> employees_query{db};
+  Query<plugin::Database, Jobs> jobs_query{db};
+  Query<plugin::Database, Employees> employees_query{db};
 
   // select record from model entity
   {

@@ -1,5 +1,5 @@
-#ifndef SQLINQ_SQLITE_DATABASE_H_
-#define SQLINQ_SQLITE_DATABASE_H_
+#ifndef SQLINQ_SQLITE_DATABASE_HPP_
+#define SQLINQ_SQLITE_DATABASE_HPP_
 
 #include <cassert>
 #include <concepts>
@@ -22,13 +22,13 @@
 
 namespace sqlinq::sqlite {
 
-class database;
+class Database;
 
-class statement {
+class Statement {
 public:
-  statement(database &db, std::string_view sql);
+  Statement(Database &db, std::string_view sql);
 
-  ~statement() { sqlite3_finalize(stmt_); }
+  ~Statement() { sqlite3_finalize(stmt_); }
 
   template <class T> void bind(int index, T &value) {
     static_assert(true, "The specified type is not supported by this method");
@@ -80,7 +80,7 @@ public:
     }
   }
 
-  inline void bind(int index, blob &&data) {
+  inline void bind(int index, Blob &&data) {
     int rc;
     rc = sqlite3_bind_blob(stmt_, index, data.data(), data.size(), nullptr);
     if (rc != SQLITE_OK) {
@@ -144,7 +144,7 @@ public:
     value = sqlite3_column_double(stmt_, index);
   }
 
-  inline void column(int index, blob &var) {
+  inline void column(int index, Blob &var) {
     assert(sqlite3_column_type(stmt_, index) == SQLITE_BLOB &&
            "Incorrect column type");
     const char *data = (const char*)sqlite3_column_blob(stmt_, index);
@@ -176,15 +176,15 @@ private:
   }
 };
 
-class database {
+class Database {
 public:
-  friend class statement;
+  friend class Statement;
 
-  database() {}
-  virtual ~database() { disconnect(); }
+  Database() {}
+  virtual ~Database() { disconnect(); }
 
-  database(database &&) = default;
-  database(const database &) = delete;
+  Database(Database &&) = default;
+  Database(const Database &) = delete;
 
   void exec(const char *sql) {
     exec(sql, std::make_tuple());
@@ -194,7 +194,7 @@ public:
     static_assert(is_tuple_v<std::remove_reference_t<Tuple>>,
                   "Template type have to be std::tuple");
     int rc = SQLITE_OK;
-    statement stmt{*this, sql};
+    Statement stmt{*this, sql};
     std::apply(
         [&stmt](auto &&...args) {
           int i = 1;
@@ -223,7 +223,7 @@ public:
     Entity entity;
     std::vector<Entity> entities;
 
-    statement stmt{*this, sql};
+    Statement stmt{*this, sql};
     std::apply(
         [&stmt](auto &&...args) {
           int i = 1;
@@ -251,7 +251,7 @@ public:
     Tuple tup;
     std::vector<Tuple> records;
 
-    statement stmt{*this, sql};
+    Statement stmt{*this, sql};
     while ((rc = stmt.step()) == SQLITE_ROW) {
       stmt.column_for_each(tup);
       records.push_back(tup);
@@ -263,8 +263,8 @@ public:
     return records;
   }
 
-  int backup(database &db);
-  int restore(database &db);
+  int backup(Database &db);
+  int restore(Database &db);
 
   inline int connect(const char *fname) noexcept {
     int rc = sqlite3_open(fname, &db_);
@@ -283,12 +283,12 @@ public:
     return sqlite3_last_insert_rowid(db_);
   }
 
-  database &operator=(database &&) = default;
-  database &operator=(const database &other) = delete;
+  Database &operator=(Database &&) = default;
+  Database &operator=(const Database &other) = delete;
 
 private:
   sqlite3 *db_;
 };
 } // namespace sqlinq::sqlite
 
-#endif /* SQLINQ_SQLITE_DATABASE_H_ */
+#endif /* SQLINQ_SQLITE_DATABASE_HPP_ */

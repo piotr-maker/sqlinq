@@ -1,5 +1,5 @@
-#ifndef SQLINQ_QUERY_H_
-#define SQLINQ_QUERY_H_
+#ifndef SQLINQ_QUERY_HPP_
+#define SQLINQ_QUERY_HPP_
 
 #include <tuple>
 #include <vector>
@@ -22,9 +22,9 @@ concept Database = requires(T t, U u, const char *sql) {
     -> std::same_as<std::vector<std::tuple<Args...>>>;
 };
 
-template <class Database, class Entity> class query {
+template <class Database, class Entity> class Query {
 public:
-  query(Database &db) : db_(&db) {}
+  Query(Database &db) : db_(&db) {}
 
   auto count(const std::string_view column = "*") -> std::size_t {
     std::stringstream sql;
@@ -71,22 +71,22 @@ public:
     return db_->template exec_res<std::tuple<Args...>>(sql.str().c_str());
   }
 
-  auto group_by(const char *column) -> query & {
+  auto group_by(const char *column) -> Query & {
     ss_ << " GROUP BY " << column;
     return *this;
   }
 
-  auto limit(int n) -> query & {
+  auto limit(int n) -> Query & {
     ss_ << " LIMIT " << n;
     return *this;
   }
 
-  auto order_by(const char *column) -> query & {
+  auto order_by(const char *column) -> Query & {
     ss_ << " ORDER BY " << column;
     return *this;
   }
 
-  auto where(const char *condition) -> query & {
+  auto where(const char *condition) -> Query & {
     ss_ << " WHERE " << condition;
     return *this;
   }
@@ -107,4 +107,4 @@ private:
 
 } // namespace sqlinq
 
-#endif /* SQLINQ_QUERY_H_ */
+#endif /* SQLINQ_QUERY_HPP_ */
