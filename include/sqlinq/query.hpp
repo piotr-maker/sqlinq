@@ -8,21 +8,13 @@
 #include <iostream>
 #include <string_view>
 
+#include "sqlinq/database.hpp"
 #include "sqlinq/utility.hpp"
-#include "sqlite/binding.hpp"
+#include "sqlinq/detail/binding.hpp"
 
 namespace sqlinq {
 
-template <typename T, typename U, typename... Args>
-concept Database = requires(T t, U u, const char *sql) {
-  { t.exec(sql) } -> std::same_as<void>;
-  { t.exec(sql, u) } -> std::same_as<void>;
-  { t.template exec_res<U>(sql) } -> std::same_as<std::vector<U>>;
-  { t.template exec_res<std::tuple<Args...>>(sql)}
-    -> std::same_as<std::vector<std::tuple<Args...>>>;
-};
-
-template <class Database, class Entity> class Query {
+template <class Entity> class Query {
 public:
   Query(Database &db) : db_(&db) {}
 
@@ -100,7 +92,7 @@ private:
     Entity entity;
     auto tup = structure_to_tuple(entity);
     constexpr std::size_t N = std::tuple_size_v<decltype(tup)>;
-    constexpr auto &value = sqlite::binding_str_holder<Entity, N>::value;
+    constexpr auto &value = detail::binding_str_holder<Entity, N>::value;
     return std::string_view{value.data(), value.size()};
   }
 };

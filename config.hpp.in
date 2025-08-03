@@ -11,10 +11,10 @@
 #cmakedefine SQLINQ_PLUGIN @SQLINQ_PLUGIN_VALUE@
 
 #if SQLINQ_PLUGIN == SQLINQ_PLUGIN_MYSQL
-#include <sqlinq/mysql/database.hpp>
+#include <sqlinq/backend/mysql_backend.hpp>
 namespace plugin = sqlinq::mysql;
 #elif SQLINQ_PLUGIN == SQLINQ_PLUGIN_SQLITE
-#include <sqlinq/sqlite/database.hpp>
+#include <sqlinq/backend/sqlite_backend.hpp>
 namespace plugin = sqlinq::sqlite;
 #else
   #error "Invalid database plugin"

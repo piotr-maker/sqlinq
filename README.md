@@ -27,7 +27,7 @@ Select in SQLinq can be used in two ways:
 #include <cstdlib>
 #include <iostream>
 #include <sqlinq/query.hpp>
-#include <sqlinq/sqlite/database.h>
+#include <sqlite_backend.hpp>
 
 using namespace sqlinq;
 
@@ -38,17 +38,19 @@ struct User {
 };
 
 int main() {
-  sqlite::database db;
-  db.connect("database.db");
+  SQLiteBackend backend;
+  backend.connect("database.db");
 
-  query<User> user_query;
+  Database db{backend};
+  Query<User> user_query{db};
+
   std::vector<User> users;
   try {
     users = user_query
       .where("age > 18")
       .order_by("name")
       .select();
-  } catch(const exception& ex) {
+  } catch(const std::exception& ex) {
     std::cout << ex.what() << '\n';
     return EXIT_FAILURE;
   }
@@ -60,7 +62,7 @@ int main() {
 #include <cstdlib>
 #include <iostream>
 #include <sqlinq/query.hpp>
-#include <sqlinq/sqlite/database.h>
+#include <sqlite_backend.hpp>
 
 using namespace sqlinq;
 
@@ -71,17 +73,18 @@ struct User {
 };
 
 int main() {
-  sqlite::database db;
-  db.connect("database.db");
+  SQLiteBackend backend;
+  backend.connect("database.db");
 
-  query<User> user_query;
+  Database db{backend};
+  Query<User> user_query{db};
   std::vector<std::tuple<int, std::string>> records;
   try {
     records = user_query
       .where("age > 18")
       .order_by("age")
-      .select<int, std::string>("age", "name");
-  } catch(const exception& ex) {
+      .select<int, std::string>({"age", "name"});
+  } catch(const std::exception& ex) {
     std::cout << ex.what() << '\n';
     return EXIT_FAILURE;
   }

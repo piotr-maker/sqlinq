@@ -1,10 +1,10 @@
-#ifndef SQLINQ_SQLITE_BINDING_HPP_
-#define SQLINQ_SQLITE_BINDING_HPP_
+#ifndef SQLINQ_DETAIL_BINDING_HPP_
+#define SQLINQ_DETAIL_BINDING_HPP_
 
 #include <string_view>
 #include "../type_traits.hpp"
 
-namespace sqlinq::sqlite {
+namespace sqlinq::detail {
 
 template <typename T, std::size_t N>
 constexpr auto binding_str_array() {
@@ -19,6 +19,6 @@ template <typename T, std::size_t N>
 struct binding_str_holder {
   static inline constexpr auto value = binding_str_array<T, N>();
 };
-} // sqlinq::sqlite
+} // sqlinq::detail
 
-#endif /* SQLINQ_SQLITE_BINDING_HPP_ */
+#endif /* SQLINQ_DETAIL_BINDING_HPP_ */
