@@ -88,7 +88,7 @@ public:
   }
 
   template <std::size_t Precision, std::size_t Scale>
-  void bind(const int index, const decimal<Precision, Scale> &value) noexcept {
+  void bind(const int index, const Decimal<Precision, Scale> &value) noexcept {
     bs_[index].type = BindData::Decimal;
     bs_[index].buffer = (void *)&value;
     bs_[index].is_null = nullptr;
@@ -194,7 +194,7 @@ public:
   }
 
   template <std::size_t Precision, std::size_t Scale>
-  void column(const int index, decimal<Precision, Scale> &value) noexcept {
+  void column(const int index, Decimal<Precision, Scale> &value) noexcept {
     bd_[index].type = BindData::Decimal;
     bd_[index].buffer = (void *)&value;
     bd_[index].is_null = &is_null_[index];

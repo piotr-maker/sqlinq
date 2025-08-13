@@ -15,7 +15,7 @@ struct Regions {
 
 struct Countries {
   int country_id;
-  std::optional<std::string> country_name;
+  std::string country_name;
   int region_id; /* Regions region */
 };
 
@@ -31,14 +31,14 @@ struct Locations {
 struct Jobs {
   int job_id;
   std::string job_title;
-  std::optional<sqlinq::decimal<8, 2>> min_salary;
-  std::optional<sqlinq::decimal<8, 2>> max_salary;
+  sqlinq::Decimal<8, 2> min_salary;
+  sqlinq::Decimal<8, 2> max_salary;
 };
 
 struct Departments {
   int department_id;
   std::string department_name;
-  std::optional<int> location_id; /* Locations location */
+  int location_id; /* Locations location */
 };
 
 struct Employees {
@@ -47,9 +47,9 @@ struct Employees {
   std::string last_name;
   std::string email;
   std::optional<std::string> phone_number;
-  std::time_t hire_date;
+  sqlinq::Date hire_date;
   int job_id; /* Jobs jobs */
-  sqlinq::decimal<8, 2> salary;
+  sqlinq::Decimal<8, 2> salary;
   std::optional<int> manager_id; /* Employees employee */
   std::optional<int> department_id; /* Departments department */
 };

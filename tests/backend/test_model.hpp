@@ -34,7 +34,7 @@ struct TestModel {
 
   float float_v;
   double double_v;
-  sqlinq::decimal<8, 2> decimal_v;
+  sqlinq::Decimal<8, 2> decimal_v;
 
   sqlinq::Blob blob_v;
   std::optional<std::string> text_v;
@@ -63,7 +63,7 @@ struct TestModel {
     ASSERT_FIELD_EQUAL(big_int_v);
     ASSERT_FIELD_EQUAL(float_v);
     ASSERT_FIELD_EQUAL(double_v);
-    /*ASSERT_FIELD_EQUAL2(decimal_v);*/
+    ASSERT_FIELD_EQUAL2(decimal_v);
     ASSERT_FIELD_EQUAL2(blob_v);
     if (a.text_v != b.text_v) {
       std::string text_a = (a.text_v.has_value() ? a.text_v.value() : "NULL");

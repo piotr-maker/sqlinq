@@ -1,5 +1,7 @@
 add_library(sqlinq-core
   ${CMAKE_CURRENT_SOURCE_DIR}/datetime.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/decimal_formatter.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/decimal_parser.cpp
 )
 
 target_include_directories(sqlinq-core PUBLIC

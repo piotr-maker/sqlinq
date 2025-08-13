@@ -112,7 +112,7 @@ TEST_F(SQLiteBackendTest, SelectRowsWithBindedParams) {
   std::size_t length[2];
 
   short greater_than = 0;
-  decimal<8, 2> d{"2000.00"};
+  Decimal<8, 2> d{"2000.00"};
   Result result;
   std::vector<Result> records;
 
