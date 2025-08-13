@@ -5,7 +5,7 @@
 #include <string>
 #include <optional>
 #include <sqlinq/types.h>
-#include <sqlinq/column.hpp>
+#include <sqlinq/detail/column.hpp>
 
 struct Regions {
   int region_id;
@@ -25,7 +25,7 @@ struct Locations {
   std::optional<std::string> postal_code;
   std::string city;
   std::optional<std::string> state_province;
-  int country_id; /* Countries country */
+  std::string country_id; /* Countries country */
 };
 
 struct Jobs {

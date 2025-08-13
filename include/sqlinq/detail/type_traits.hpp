@@ -2,14 +2,24 @@
 #define SQLINQ_DETAIL_TYPE_TRAITS_HPP_
 
 #include <array>
-#include <utility>
-#include <type_traits>
+#include <concepts>
+#include <optional>
 #include <string_view>
+#include <type_traits>
+#include <utility>
 
 namespace sqlinq::detail {
 
+template <class, template <class...> class>
+inline constexpr bool is_specialization_of_v = false;
+
+template <class... Args, template <class...> class T>
+inline constexpr bool is_specialization_of_v<T<Args...>, T> = true;
+
 struct any_type {
-  template <typename T> operator T() const;
+  template <typename T, typename = std::enable_if_t<!is_specialization_of_v<
+                            std::remove_cvref_t<T>, std::optional>>>
+  operator T() const;
 };
 
 template <typename T, typename Is, typename = std::void_t<>>
@@ -36,14 +46,14 @@ constexpr char toLower(const char c) {
 
 template <std::size_t... Is>
 constexpr auto substring_as_array_impl(std::string_view substr,
-                                  std::index_sequence<Is...>) {
+                                       std::index_sequence<Is...>) {
   return std::array{toLower(substr[Is])...};
 }
 
 template <class T, std::size_t N>
 concept has_tuple_element = requires(T t) {
   typename std::tuple_element_t<N, std::remove_const_t<T>>;
-  { get<N>(t) } -> std::convertible_to<const std::tuple_element<N, T>&>;
+  { get<N>(t) } -> std::convertible_to<const std::tuple_element<N, T> &>;
 };
 } // namespace sqlinq::detail
 

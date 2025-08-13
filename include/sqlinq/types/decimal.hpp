@@ -25,7 +25,7 @@ public:
     decimal_ = (decltype(decimal_))(dec);
   }
 
-  explicit constexpr decimal(std::string_view value)
+  constexpr decimal(std::string_view value)
       : decimal_(0), fractional_(0) {
     constexpr const char delimiter = '.';
     std::size_t pos = value.find(delimiter);
@@ -36,6 +36,10 @@ public:
     }
     auto [ptr, ec] =
         std::from_chars(value.data(), value.data() + value.size(), decimal_);
+  }
+
+  int64_t raw() const noexcept {
+    return decimal_ * precision_ + fractional_;
   }
 
   decimal operator+(const decimal &other) const {
@@ -51,7 +55,7 @@ public:
     return decimal{d, f % precision_};
   }
 
-  bool operator==(const decimal &other) {
+  bool operator==(const decimal &other) const {
     return this->decimal_ == other.decimal_ &&
            this->fractional_ == other.fractional_;
   }
@@ -69,6 +73,13 @@ private:
 
   decimal(int64_t dec, uint64_t frac) : decimal_(dec), fractional_(frac) {}
 };
+
+template <std::size_t M, std::size_t D>
+std::string to_string(const decimal<M, D> &d) {
+  std::stringstream ss;
+  ss << d;
+  return ss.str();
+}
 } // namespace sqlinq
 
 #endif /* SQLINQ_TYPES_DECIMAL_HPP_ */

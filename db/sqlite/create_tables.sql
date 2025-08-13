@@ -17,7 +17,7 @@ CREATE TABLE locations (
 	postal_code text,
 	city text NOT NULL,
 	state_province text,
-	country_id INTEGER NOT NULL,
+	country_id TEXT NOT NULL,
 	FOREIGN KEY (country_id) REFERENCES countries (country_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 

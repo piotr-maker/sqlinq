@@ -1,26 +1,26 @@
 #include <cstdlib>
 #include <exception>
-#include <sqlinq/config.hpp>
+/*#include <sqlinq/config.hpp>*/
 #include <sqlinq/query.hpp>
 #include <string>
 
 #include "model.hpp"
+#include "mysql_backend.hpp"
 #include "record.hpp"
+#include "sqlite_backend.hpp"
 
 using namespace std;
 using namespace sqlinq;
 
 int main() {
-#if SQLINQ_PLUGIN == SQLINQ_PLUGIN_MYSQL
-  mysql::Database db;
-  db.connect("localhost", "piotr", "passwd", "personnel");
-#elif SQLINQ_PLUGIN == SQLINQ_PLUGIN_SQLITE
-  sqlite::Database db;
-  db.connect("database.db");
-#endif
+  MySQLBackend mysql;
+  mysql.connect("localhost", "piotr", "passwd", "personnel");
+  SQLiteBackend sqlite;
+  sqlite.connect("database.db");
 
-  Query<plugin::Database, Jobs> jobs_query{db};
-  Query<plugin::Database, Employees> employees_query{db};
+  Database db{mysql};
+  Query<Jobs> jobs_query{db};
+  Query<Employees> employees_query{db};
 
   // select record from model entity
   {
@@ -31,7 +31,7 @@ int main() {
       std::cout << "Failed to select model entity: " << ex.what() << '\n';
     }
 
-    for (const auto job : jobs) {
+    for (const auto &job : jobs) {
       auto tup = structure_to_tuple(job);
       print_record(std::forward<decltype(tup)>(tup));
     }
@@ -61,7 +61,7 @@ int main() {
     std::size_t count;
     try {
       count = employees_query.count();
-    } catch (const std::exception ex) {
+    } catch (const std::exception &ex) {
       std::cout << "Count query failed: " << ex.what() << '\n';
     }
     std::cout << "Employees Count(*): " << count << '\n';
@@ -72,7 +72,7 @@ int main() {
     std::size_t count;
     try {
       count = employees_query.count("phone_number");
-    } catch (const std::exception ex) {
+    } catch (const std::exception &ex) {
       std::cout << "Count by column query failed: " << ex.what() << '\n';
     }
     std::cout << "Employees Count(phone_number): " << count << '\n';
@@ -84,7 +84,7 @@ int main() {
     try {
       result = employees_query.group_by("department_id")
                    .select<size_t, size_t>({"department_id", "COUNT(*)"});
-    } catch (const std::exception ex) {
+    } catch (const std::exception &ex) {
       std::cout << "Advanced count query failed: " << ex.what() << '\n';
     }
 
