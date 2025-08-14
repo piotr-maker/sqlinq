@@ -40,10 +40,10 @@ int main() {
 
   // select data from specific columns with order_by
   {
-    vector<tuple<int, optional<string>, string, decimal<8, 2>>> employees;
+    vector<tuple<int, optional<string>, string, Decimal<8, 2>>> employees;
     try {
       employees = employees_query.order_by("first_name")
-                      .select<int, optional<string>, string, decimal<8, 2>>(
+                      .select<int, optional<string>, string, Decimal<8, 2>>(
                           {"employee_id", "first_name", "last_name", "salary"});
 
     } catch (const std::exception &ex) {

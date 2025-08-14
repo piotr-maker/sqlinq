@@ -1,5 +1,5 @@
 #include "mysql_backend.hpp"
-#include "mariadb_com.h"
+#include <algorithm>
 #include <cassert>
 #include <cstring>
 #include <mysql.h>
@@ -112,9 +112,9 @@ void MySQLBackend::map_bind_param(const sqlinq::BindData *bd, MYSQL_BIND *mb) {
     break;
   }
   case BindData::Decimal: {
-    sqlinq::decimal<8, 2> decimal;
+    sqlinq::details::DecimalRuntime decimal;
     std::memcpy(&decimal, bd->buffer, sizeof(decimal));
-    std::string decimal_str = sqlinq::to_string(decimal);
+    std::string decimal_str = sqlinq::details::to_string(decimal);
     mb->buffer = storage_.allocate<char>(decimal_str.size());
     std::memcpy(mb->buffer, decimal_str.data(), decimal_str.size());
     mb->buffer_length = decimal_str.size();
@@ -294,8 +294,9 @@ ExecStatus MySQLBackend::stmt_fetch() {
       break;
     }
     case BindData::Decimal: {
-      std::string_view sv{(const char *)my_bind_[i].buffer, *my_bind_[i].length};
-      sqlinq::decimal<18, 19> decimal{sv};
+      std::string s{(const char *)my_bind_[i].buffer, *my_bind_[i].length};
+      s.erase(std::remove(s.begin(), s.end(), '.'), s.end());
+      sqlinq::Decimal<18, 0> decimal{s};
       std::memcpy(bind_[i].buffer, &decimal, sizeof(decimal));
       break;
     }

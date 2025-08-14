@@ -11,14 +11,14 @@
 namespace detail {
 
 template <std::size_t M, std::size_t D>
-void print_val(sqlinq::decimal<M, D>&& value) {
+void print_val(sqlinq::Decimal<M, D>&& value) {
   constexpr static int width = M + D + 2;
   std::cout << '|' << std::setw(width) << std::right << value;
   std::cout << std::setfill(' ');
 }
 
 template <std::size_t M, std::size_t D>
-void print_val(const sqlinq::decimal<M, D>& value) {
+void print_val(const sqlinq::Decimal<M, D>& value) {
   constexpr static int width = M + D + 2;
   std::cout << '|' << std::setw(width) << std::right << value;
   std::cout << std::setfill(' ');

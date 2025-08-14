@@ -19,6 +19,10 @@ set(UNIT_TEST_SOURCES
   backend/intermediate_storage_test.cpp
   core/db_result_test.cpp
   types/datetime_test.cpp
+  types/decimal_formatter_test.cpp
+  types/decimal_parser_test.cpp
+  types/decimal_test.cpp
+  types/static_assert.cpp
 )
 
 if(SQLINQ_USE_MYSQL)

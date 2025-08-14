@@ -120,9 +120,9 @@ int bind_decimal_param(sqlite3_stmt *stmt, const int index,
     return SQLITE_ERROR;
   }
 
-  sqlinq::decimal<8, 2> decimal;
+  sqlinq::Decimal<8, 2> decimal;
   memcpy(&decimal, bind.buffer, sizeof(decimal));
-  long long raw = decimal.raw();
+  int64_t raw = static_cast<int64_t>(decimal);
   return sqlite3_bind_int64(stmt, index, raw);
 }
 
@@ -281,7 +281,6 @@ void fetch_datetime_column(sqlite3_stmt *stmt, const int index,
   }
 }
 
-// TODO: how to get precision inside function?
 void fetch_decimal_column(sqlite3_stmt *stmt, const int index,
                           const BindData &bind) {
   int col_type = sqlite3_column_type(stmt, index);
@@ -298,9 +297,9 @@ void fetch_decimal_column(sqlite3_stmt *stmt, const int index,
     return;
   }
 
-  /*long long raw;*/
-  /*sqlinq::decimal<18, 19> decimal;*/
-  /*raw = (long long)sqlite3_column_int64(stmt, index);*/
+  int64_t raw = (long long)sqlite3_column_int64(stmt, index);
+  auto decimal = sqlinq::Decimal<18, 0>::from_raw(raw);
+  memcpy(bind.buffer, (void *)&decimal, sizeof(decimal));
 }
 
 void SQLiteBackend::bind_param(const BindData *bd, const std::size_t size) {
@@ -415,6 +414,9 @@ ExecStatus SQLiteBackend::stmt_fetch() {
       break;
     case BindData::Group::Datetime:
       fetch_datetime_column(stmt_, index, *bind);
+      break;
+    case BindData::Group::Decimal:
+      fetch_decimal_column(stmt_, index, *bind);
       break;
     default:
       break;
