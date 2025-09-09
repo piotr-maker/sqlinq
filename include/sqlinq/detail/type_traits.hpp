@@ -9,6 +9,17 @@
 #include <utility>
 
 namespace sqlinq::detail {
+template <typename T> struct is_optional : std::false_type {};
+
+template <typename U> struct is_optional<std::optional<U>> : std::true_type {
+  using value_type = U;
+};
+
+template <typename T>
+inline constexpr bool is_optional_v = is_optional<T>::value;
+
+template <typename T>
+using optional_value_t = typename is_optional<T>::value_type;
 
 template <class, template <class...> class>
 inline constexpr bool is_specialization_of_v = false;

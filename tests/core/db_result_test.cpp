@@ -2,7 +2,7 @@
 #include <gtest/gtest.h>
 
 #include "mock_backend.hpp"
-#include "sqlinq/database.hpp"
+#include "sqlinq/cursor.hpp"
 
 using ::testing::_;
 using ::testing::SaveArg;
@@ -25,14 +25,14 @@ TEST(DbResultTest, FetchEachTupleContainerElement) {
       .WillOnce(SaveArg<1>(&bind1));
   result.fetch_for_each(tup);
 
-  EXPECT_EQ(bind0.type, BindData::Text);
+  EXPECT_EQ(bind0.type, column::Type::Text);
   EXPECT_EQ(bind0.buffer, (void *)std::get<0>(tup).data());
   EXPECT_EQ(bind0.buffer_length, 0);
   EXPECT_NE(bind0.length, nullptr);
   EXPECT_NE(bind0.is_null, nullptr);
   EXPECT_NE(bind0.error, nullptr);
 
-  EXPECT_EQ(bind1.type, BindData::Blob);
+  EXPECT_EQ(bind1.type, column::Type::Blob);
   EXPECT_EQ(bind1.buffer, (void *)std::get<1>(tup).data());
   EXPECT_EQ(bind1.buffer_length, 0);
   EXPECT_NE(bind1.length, nullptr);
@@ -54,14 +54,14 @@ TEST(DbResultTest, PrepareBindEachTupleContainerElement) {
 
   ASSERT_NE(captured, nullptr);
   bind = &captured[0];
-  EXPECT_EQ(bind->type, BindData::Text);
+  EXPECT_EQ(bind->type, column::Type::Text);
   EXPECT_EQ(bind->buffer, nullptr);
   EXPECT_NE(bind->length, nullptr);
   EXPECT_NE(bind->is_null, nullptr);
   EXPECT_NE(bind->error, nullptr);
 
   bind = &captured[1];
-  EXPECT_EQ(bind->type, BindData::Blob);
+  EXPECT_EQ(bind->type, column::Type::Blob);
   EXPECT_EQ(bind->buffer, nullptr);
   EXPECT_NE(bind->length, nullptr);
   EXPECT_NE(bind->is_null, nullptr);
@@ -82,14 +82,14 @@ TEST(DbResultTest, PrepareBindEachTupleOptionalElement) {
 
   ASSERT_NE(captured, nullptr);
   bind = &captured[0];
-  EXPECT_EQ(bind->type, BindData::Long);
+  EXPECT_EQ(bind->type, column::Type::Int);
   EXPECT_EQ(bind->buffer, (void *)&std::get<0>(tup));
   EXPECT_EQ(bind->length, nullptr);
   EXPECT_NE(bind->is_null, nullptr);
   EXPECT_NE(bind->error, nullptr);
 
   bind = &captured[1];
-  EXPECT_EQ(bind->type, BindData::Text);
+  EXPECT_EQ(bind->type, column::Type::Text);
   EXPECT_EQ(bind->buffer, nullptr);
   EXPECT_NE(bind->length, nullptr);
   EXPECT_NE(bind->is_null, nullptr);
@@ -110,49 +110,49 @@ TEST(DbResultTest, PrepareBindEachTupleNumericElement) {
 
   ASSERT_NE(captured, nullptr);
   bind = &captured[0];
-  EXPECT_EQ(bind->type, BindData::Bit);
+  EXPECT_EQ(bind->type, column::Type::Bit);
   EXPECT_EQ(bind->buffer, (void *)&std::get<0>(tup));
   EXPECT_EQ(bind->length, nullptr);
   EXPECT_NE(bind->is_null, nullptr);
   EXPECT_NE(bind->error, nullptr);
 
   bind = &captured[1];
-  EXPECT_EQ(bind->type, BindData::Tiny);
+  EXPECT_EQ(bind->type, column::Type::TinyInt);
   EXPECT_EQ(bind->buffer, (void *)&std::get<1>(tup));
   EXPECT_EQ(bind->length, nullptr);
   EXPECT_NE(bind->is_null, nullptr);
   EXPECT_NE(bind->error, nullptr);
 
   bind = &captured[2];
-  EXPECT_EQ(bind->type, BindData::Short);
+  EXPECT_EQ(bind->type, column::Type::SmallInt);
   EXPECT_EQ(bind->buffer, (void *)&std::get<2>(tup));
   EXPECT_EQ(bind->length, nullptr);
   EXPECT_NE(bind->is_null, nullptr);
   EXPECT_NE(bind->error, nullptr);
 
   bind = &captured[3];
-  EXPECT_EQ(bind->type, BindData::Long);
+  EXPECT_EQ(bind->type, column::Type::Int);
   EXPECT_EQ(bind->buffer, (void *)&std::get<3>(tup));
   EXPECT_EQ(bind->length, nullptr);
   EXPECT_NE(bind->is_null, nullptr);
   EXPECT_NE(bind->error, nullptr);
 
   bind = &captured[4];
-  EXPECT_EQ(bind->type, BindData::LongLong);
+  EXPECT_EQ(bind->type, column::Type::BigInt);
   EXPECT_EQ(bind->buffer, (void *)&std::get<4>(tup));
   EXPECT_EQ(bind->length, nullptr);
   EXPECT_NE(bind->is_null, nullptr);
   EXPECT_NE(bind->error, nullptr);
 
   bind = &captured[5];
-  EXPECT_EQ(bind->type, BindData::Float);
+  EXPECT_EQ(bind->type, column::Type::Float);
   EXPECT_EQ(bind->buffer, (void *)&std::get<5>(tup));
   EXPECT_EQ(bind->length, nullptr);
   EXPECT_NE(bind->is_null, nullptr);
   EXPECT_NE(bind->error, nullptr);
 
   bind = &captured[6];
-  EXPECT_EQ(bind->type, BindData::Double);
+  EXPECT_EQ(bind->type, column::Type::Double);
   EXPECT_EQ(bind->buffer, (void *)&std::get<6>(tup));
   EXPECT_EQ(bind->length, nullptr);
   EXPECT_NE(bind->is_null, nullptr);

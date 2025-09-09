@@ -1,4 +1,5 @@
 #include "mysql_backend.hpp"
+#include "sqlinq/types/decimal.hpp"
 #include <algorithm>
 #include <cassert>
 #include <cstring>
@@ -11,34 +12,34 @@ namespace sqlinq {
 
 constexpr std::size_t MAX_DECIMAL_STR_LEN = 68;
 
-enum_field_types map_buffer_type(BindData::Type type) {
+enum_field_types map_buffer_type(column::Type type) {
   switch (type) {
-  case BindData::Bit:
+  case column::Type::Bit:
     return MYSQL_TYPE_TINY;
-  case BindData::Tiny:
+  case column::Type::TinyInt:
     return MYSQL_TYPE_TINY;
-  case BindData::Short:
+  case column::Type::SmallInt:
     return MYSQL_TYPE_SHORT;
-  case BindData::Long:
+  case column::Type::Int:
     return MYSQL_TYPE_LONG;
-  case BindData::LongLong:
+  case column::Type::BigInt:
     return MYSQL_TYPE_LONGLONG;
-  case BindData::Float:
+  case column::Type::Float:
     return MYSQL_TYPE_FLOAT;
-  case BindData::Double:
+  case column::Type::Double:
     return MYSQL_TYPE_DOUBLE;
-  case BindData::Blob:
+  case column::Type::Blob:
     return MYSQL_TYPE_BLOB;
-  case BindData::Text:
+  case column::Type::Text:
     return MYSQL_TYPE_STRING;
-  case BindData::Date:
+  case column::Type::Date:
     return MYSQL_TYPE_DATE;
-  case BindData::Time:
+  case column::Type::Time:
     return MYSQL_TYPE_TIME;
-  case BindData::Datetime:
-  case BindData::Timestamp:
+  case column::Type::Datetime:
+  case column::Type::Timestamp:
     return MYSQL_TYPE_DATETIME;
-  case BindData::Decimal:
+  case column::Type::Decimal:
     return MYSQL_TYPE_STRING;
     break;
   default:
@@ -56,91 +57,16 @@ void map_bind_data(const sqlinq::BindData *bd, MYSQL_BIND *mb) {
   mb->is_null = (my_bool *)bd->is_null;
 }
 
-void MySQLBackend::map_bind_param(const sqlinq::BindData *bd, MYSQL_BIND *mb) {
-  MYSQL_TIME my_time{};
-  switch (bd->type) {
-  case BindData::Date: {
-    sqlinq::Date date;
-    std::memcpy(&date, bd->buffer, sizeof(date));
-    my_time.year = (unsigned)static_cast<int>(date.year());
-    my_time.month = static_cast<unsigned>(date.month());
-    my_time.day = static_cast<unsigned>(date.day());
-    mb->buffer = storage_.allocate<MYSQL_TIME>();
-    std::memcpy(mb->buffer, &my_time, sizeof(MYSQL_TIME));
-    break;
-  }
-  case BindData::Time: {
-    sqlinq::Time time;
-    std::memcpy(&time, bd->buffer, sizeof(time));
-    my_time.hour = (unsigned)time.hours().count();
-    my_time.minute = (unsigned)time.minutes().count();
-    my_time.second = (unsigned)time.seconds().count();
-    mb->buffer = storage_.allocate<MYSQL_TIME>();
-    std::memcpy(mb->buffer, &my_time, sizeof(MYSQL_TIME));
-    break;
-  }
-  case BindData::Datetime: {
-    sqlinq::Datetime dt;
-    std::memcpy(&dt, bd->buffer, sizeof(dt));
-    std::time_t t = std::chrono::system_clock::to_time_t(dt);
-    std::tm utc_tm;
-    utc_tm = *gmtime(&t);
-    my_time.year = (unsigned)utc_tm.tm_year + 1900;
-    my_time.month = (unsigned)utc_tm.tm_mon + 1;
-    my_time.day = (unsigned)utc_tm.tm_mday;
-    my_time.hour = (unsigned)utc_tm.tm_hour;
-    my_time.minute = (unsigned)utc_tm.tm_min;
-    my_time.second = (unsigned)utc_tm.tm_sec;
-    mb->buffer = storage_.allocate<MYSQL_TIME>();
-    std::memcpy(mb->buffer, &my_time, sizeof(MYSQL_TIME));
-    break;
-  }
-  case BindData::Timestamp: {
-    sqlinq::Timestamp ts;
-    std::memcpy(&ts, bd->buffer, sizeof(ts));
-    std::time_t t = ts.count();
-    std::tm utc_tm;
-    utc_tm = *gmtime(&t);
-    my_time.year = (unsigned)utc_tm.tm_year + 1900;
-    my_time.month = (unsigned)utc_tm.tm_mon + 1;
-    my_time.day = (unsigned)utc_tm.tm_mday;
-    my_time.hour = (unsigned)utc_tm.tm_hour;
-    my_time.minute = (unsigned)utc_tm.tm_min;
-    my_time.second = (unsigned)utc_tm.tm_sec;
-    mb->buffer = storage_.allocate<MYSQL_TIME>();
-    std::memcpy(mb->buffer, &my_time, sizeof(MYSQL_TIME));
-    break;
-  }
-  case BindData::Decimal: {
-    sqlinq::details::DecimalRuntime decimal;
-    std::memcpy(&decimal, bd->buffer, sizeof(decimal));
-    std::string decimal_str = sqlinq::details::to_string(decimal);
-    mb->buffer = storage_.allocate<char>(decimal_str.size());
-    std::memcpy(mb->buffer, decimal_str.data(), decimal_str.size());
-    mb->buffer_length = decimal_str.size();
-    *bd->length = decimal_str.size();
-    break;
-  }
-  default:
-    mb->buffer = bd->buffer;
-    mb->buffer_length = bd->buffer_length;
-  }
-  mb->buffer_type = map_buffer_type(bd->type);
-  mb->length = bd->length;
-  mb->error = (my_bool *)bd->error;
-  mb->is_null = (my_bool *)bd->is_null;
-}
-
 void MySQLBackend::map_bind_result(const sqlinq::BindData *bd, MYSQL_BIND *mb) {
   memset(mb, 0, sizeof(MYSQL_BIND));
   switch (bd->type) {
-  case BindData::Date:
-  case BindData::Time:
-  case BindData::Datetime:
-  case BindData::Timestamp:
+  case column::Type::Date:
+  case column::Type::Time:
+  case column::Type::Datetime:
+  case column::Type::Timestamp:
     mb->buffer = storage_.allocate<MYSQL_TIME>(1);
     break;
-  case BindData::Decimal:
+  case column::Type::Decimal:
     mb->buffer = storage_.allocate<char>(MAX_DECIMAL_STR_LEN);
     mb->buffer_length = MAX_DECIMAL_STR_LEN;
     mb->length = (unsigned long *)storage_.allocate<unsigned long>(1);
@@ -155,11 +81,97 @@ void MySQLBackend::map_bind_result(const sqlinq::BindData *bd, MYSQL_BIND *mb) {
   mb->is_null = (my_bool *)bd->is_null;
 }
 
-void MySQLBackend::bind_param(const BindData *bd, std::size_t size) {
-  auto bind = std::make_unique<MYSQL_BIND[]>(size);
-  memset(bind.get(), 0, sizeof(MYSQL_BIND) * size);
-  for (std::size_t i = 0; i < size; i++) {
-    map_bind_param(&bd[i], &bind[i]);
+void MySQLBackend::bind_params(std::span<BoundValue> params) {
+  auto bind = std::make_unique<MYSQL_BIND[]>(params.size());
+  memset(bind.get(), 0, sizeof(MYSQL_BIND) * params.size());
+  for (std::size_t i = 0; i < params.size(); i++) {
+    MYSQL_TIME my_time{};
+    BoundValue &p = params[i];
+
+    bind[i].buffer_type = map_buffer_type(p.type());
+    switch (p.type()) {
+    case column::Type::Null: {
+      bind[i].is_null = (my_bool *)storage_.allocate<my_bool>(1);
+      *bind[i].is_null = 1;
+      break;
+    }
+    case column::Type::Bit:
+    case column::Type::TinyInt:
+    case column::Type::SmallInt:
+    case column::Type::Int:
+    case column::Type::BigInt:
+    case column::Type::Float:
+    case column::Type::Double:
+      bind[i].buffer = const_cast<void *>(p.ptr());
+      break;
+    case column::Type::Blob:
+    case column::Type::Text: {
+      ulong *length = (ulong *)storage_.allocate<ulong>(1);
+      bind[i].buffer = const_cast<void *>(p.ptr());
+      bind[i].buffer_length = *length = p.size();
+      bind[i].length = length;
+      break;
+    }
+    case column::Type::Decimal: {
+      int64_t value = *(int64_t *)p.ptr();
+      int64_t scale = static_cast<int64_t>(p.size());
+      sqlinq::details::DecimalRuntime decimal{value, scale};
+      ulong *length = (ulong *)storage_.allocate<ulong>(1);
+      std::string str = sqlinq::details::to_string(decimal);
+      bind[i].buffer = storage_.allocate<char>(str.size());
+      std::memcpy(bind[i].buffer, str.data(), str.size());
+      bind[i].buffer_length = *length = str.size();
+      bind[i].length = length;
+      break;
+    }
+    case column::Type::Date: {
+      sqlinq::Date date = *(sqlinq::Date *)(p.ptr());
+      my_time.year = (unsigned)static_cast<int>(date.year());
+      my_time.month = static_cast<unsigned>(date.month());
+      my_time.day = static_cast<unsigned>(date.day());
+      bind[i].buffer = storage_.allocate<MYSQL_TIME>();
+      std::memcpy(bind[i].buffer, &my_time, sizeof(MYSQL_TIME));
+      break;
+    }
+    case column::Type::Time: {
+      sqlinq::Time time = *(sqlinq::Time *)(p.ptr());
+      my_time.hour = (unsigned)time.hours().count();
+      my_time.minute = (unsigned)time.minutes().count();
+      my_time.second = (unsigned)time.seconds().count();
+      bind[i].buffer = storage_.allocate<MYSQL_TIME>();
+      std::memcpy(bind[i].buffer, &my_time, sizeof(MYSQL_TIME));
+      break;
+    }
+    case column::Type::Datetime: {
+      sqlinq::Datetime dt = *(sqlinq::Datetime *)(p.ptr());
+      std::time_t t = std::chrono::system_clock::to_time_t(dt);
+      std::tm utc_tm;
+      utc_tm = *gmtime(&t);
+      my_time.year = (unsigned)utc_tm.tm_year + 1900;
+      my_time.month = (unsigned)utc_tm.tm_mon + 1;
+      my_time.day = (unsigned)utc_tm.tm_mday;
+      my_time.hour = (unsigned)utc_tm.tm_hour;
+      my_time.minute = (unsigned)utc_tm.tm_min;
+      my_time.second = (unsigned)utc_tm.tm_sec;
+      bind[i].buffer = storage_.allocate<MYSQL_TIME>();
+      std::memcpy(bind[i].buffer, &my_time, sizeof(MYSQL_TIME));
+      break;
+    }
+    case column::Type::Timestamp: {
+      std::time_t t = *(int64_t *)(p.ptr());
+      std::tm utc_tm;
+      utc_tm = *gmtime(&t);
+      my_time.year = (unsigned)utc_tm.tm_year + 1900;
+      my_time.month = (unsigned)utc_tm.tm_mon + 1;
+      my_time.day = (unsigned)utc_tm.tm_mday;
+      my_time.hour = (unsigned)utc_tm.tm_hour;
+      my_time.minute = (unsigned)utc_tm.tm_min;
+      my_time.second = (unsigned)utc_tm.tm_sec;
+      bind[i].buffer = storage_.allocate<MYSQL_TIME>();
+      std::memcpy(bind[i].buffer, &my_time, sizeof(MYSQL_TIME));
+      break;
+    }
+    }
   }
   if (mysql_stmt_bind_param(stmt_, bind.get())) {
     throw std::runtime_error(mysql_stmt_error(stmt_));
@@ -250,7 +262,7 @@ ExecStatus MySQLBackend::stmt_fetch() {
   for (std::size_t i = 0; i < bind_size_; i++) {
     MYSQL_TIME my_time{};
     switch (bind_[i].type) {
-    case BindData::Date: {
+    case column::Type::Date: {
       std::memcpy(&my_time, my_bind_[i].buffer, sizeof(my_time));
       sqlinq::Date date{std::chrono::year{(int)my_time.year},
                         std::chrono::month{my_time.month},
@@ -258,7 +270,7 @@ ExecStatus MySQLBackend::stmt_fetch() {
       std::memcpy(bind_[i].buffer, &date, sizeof(date));
       break;
     }
-    case BindData::Time: {
+    case column::Type::Time: {
       std::memcpy(&my_time, my_bind_[i].buffer, sizeof(my_time));
       sqlinq::Time time{std::chrono::hours{(int)my_time.hour} +
                         std::chrono::minutes{my_time.minute} +
@@ -266,7 +278,7 @@ ExecStatus MySQLBackend::stmt_fetch() {
       std::memcpy(bind_[i].buffer, &time, sizeof(time));
       break;
     }
-    case BindData::Datetime: {
+    case column::Type::Datetime: {
       std::tm tm{};
       std::memcpy(&my_time, my_bind_[i].buffer, sizeof(my_time));
       tm.tm_year = (int)my_time.year - 1900;
@@ -279,7 +291,7 @@ ExecStatus MySQLBackend::stmt_fetch() {
       std::memcpy(bind_[i].buffer, &dt, sizeof(dt));
       break;
     }
-    case BindData::Timestamp: {
+    case column::Type::Timestamp: {
       std::tm tm{};
       std::memcpy(&my_time, my_bind_[i].buffer, sizeof(my_time));
       tm.tm_year = (int)my_time.year - 1900;
@@ -293,7 +305,7 @@ ExecStatus MySQLBackend::stmt_fetch() {
       std::memcpy(bind_[i].buffer, &ts, sizeof(ts));
       break;
     }
-    case BindData::Decimal: {
+    case column::Type::Decimal: {
       std::string s{(const char *)my_bind_[i].buffer, *my_bind_[i].length};
       s.erase(std::remove(s.begin(), s.end(), '.'), s.end());
       sqlinq::Decimal<18, 0> decimal{s};

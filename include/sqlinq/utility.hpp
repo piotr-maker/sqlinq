@@ -2,6 +2,7 @@
 #define SQLINQ_UTILITY_HPP_
 
 #include <string_view>
+
 #include "detail/utility.hpp"
 
 namespace sqlinq {
