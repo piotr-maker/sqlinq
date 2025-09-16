@@ -82,11 +82,22 @@ public:
 
   static constexpr Decimal from_raw(value_type val) { return Decimal(val, 0); }
   constexpr bool is_nan() const noexcept { return value_ == nan_sentinel; }
-  bool operator==(const Decimal &other) { return this->value_ == other.value_; }
-  bool operator!=(const Decimal &other) { return !(*this == other); }
-  bool operator<(const Decimal &other) { return this->value_ < other.value_; }
-  bool operator>(const Decimal &other) { return this->value_ > other.value_; }
-  constexpr operator value_type() const noexcept { return this->value_; }
+
+  bool operator==(const Decimal &other) const noexcept {
+    return this->value_ == other.value_;
+  }
+  bool operator!=(const Decimal &other) const noexcept {
+    return !(*this == other);
+  }
+  bool operator<(const Decimal &other) const noexcept {
+    return this->value_ < other.value_;
+  }
+  bool operator>(const Decimal &other) const noexcept {
+    return this->value_ > other.value_;
+  }
+  explicit constexpr operator value_type() const noexcept {
+    return this->value_;
+  }
 
   friend std::ostream &operator<<(std::ostream &os, const Decimal d) {
     value_type raw = static_cast<value_type>(d);

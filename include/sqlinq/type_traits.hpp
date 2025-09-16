@@ -3,6 +3,7 @@
 
 #include <type_traits>
 #include <string_view>
+
 #include "detail/structure.hpp"
 #include "detail/type_traits.hpp"
 

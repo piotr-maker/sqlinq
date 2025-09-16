@@ -120,27 +120,27 @@ TEST_F(SQLiteBackendTest, SelectRowsWithBindedParams) {
   memset(&length, 0, sizeof(length));
   memset(&is_null, 0, sizeof(is_null));
 
-  bind[0].type = BindData::Decimal;
-  bind[0].buffer = &d;
-  bind[0].length = &length[0];
-  bind[0].is_null = &is_null[0];
-
-  bind[1].type = BindData::Short;
-  bind[1].buffer = &greater_than;
-  bind[1].length = &length[1];
-  bind[1].is_null = &is_null[1];
+  std::vector<BoundValue> params;
+  params.emplace_back(Decimal<8, 2>{"2000.00"});
+  params.emplace_back(
+      BoundValue{&greater_than, 0, details::column_type_of<short>()});
 
   backend_.stmt_init();
   backend_.stmt_prepare("SELECT tiny_int_v, timestamp_v FROM test WHERE "
                         "decimal_v > ? AND small_int_v > ?");
-  backend_.bind_param(bind, 2);
+  backend_.bind_params(std::span{params.data(), params.size()});
   ASSERT_EQ(backend_.stmt_execute(), ExecStatus::Ok);
 
-  is_null[0] = false;
-  bind[0].type = BindData::Tiny;
+  bind[0].type = column::Type::TinyInt;
   bind[0].buffer = &std::get<0>(result);
-  bind[1].type = BindData::Timestamp;
+  bind[0].length = &length[0];
+  bind[0].is_null = &is_null[0];
+
+  bind[1].type = column::Type::Timestamp;
   bind[1].buffer = &std::get<1>(result);
+  bind[1].length = &length[1];
+  bind[1].is_null = &is_null[1];
+
   backend_.bind_result(bind, 2);
   while (backend_.stmt_fetch() == ExecStatus::Row) {
     records.push_back(result);
@@ -243,12 +243,12 @@ TEST_F(SQLiteBackendTest, InsertRows) {
 
   backend_.stmt_init();
   backend_.stmt_prepare(insert_query);
-  bind.bind_param(rows[0]);
-  backend_.bind_param(bind.get(), TestModel::column_count);
+  auto params = bind.bind_param(rows[0]);
+  backend_.bind_params(std::span{params.data(), params.size()});
   ASSERT_EQ(backend_.stmt_execute(), ExecStatus::Ok);
 
-  bind.bind_param(rows[1]);
-  backend_.bind_param(bind.get(), TestModel::column_count);
+  params = bind.bind_param(rows[1]);
+  backend_.bind_params(std::span{params.data(), params.size()});
   ASSERT_EQ(backend_.stmt_execute(), ExecStatus::Ok);
   backend_.stmt_close();
 

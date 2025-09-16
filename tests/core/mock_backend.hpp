@@ -2,14 +2,13 @@
 #define CORE_MOCK_BACKEND_HPP_
 
 #include <gmock/gmock.h>
-#include <sqlinq//backend/backend_iface.hpp>
+#include <sqlinq/backend/backend_iface.hpp>
 
 using namespace sqlinq;
 
 class MockBackend : public BackendIface {
 public:
-  MOCK_METHOD(void, bind_param, (const BindData *, const std::size_t),
-              (override));
+  MOCK_METHOD(void, bind_params, (std::span<BoundValue>), (override));
   MOCK_METHOD(void, bind_result, (const BindData *, const std::size_t),
               (override));
 

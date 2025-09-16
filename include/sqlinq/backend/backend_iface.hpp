@@ -1,7 +1,10 @@
 #ifndef SQLINQ_BACKEND_IFACE_HPP_
 #define SQLINQ_BACKEND_IFACE_HPP_
 
+#include "sqlinq/table.hpp"
+#include "sqlinq/query_ast.hpp"
 #include <cstdint>
+#include <span>
 #include <string_view>
 
 namespace sqlinq {
@@ -14,72 +17,18 @@ enum class ExecStatus {
 };
 
 struct BindData {
-  enum class Group {
-    Container,
-    Datetime,
-    Decimal,
-    Floating,
-    Integral,
-    Null
-  };
-
-  enum Type {
-    Null,
-    Bit,
-    Tiny,
-    Short,
-    Long,
-    LongLong,
-    Float,
-    Double,
-    Date,
-    Time,
-    Datetime,
-    Timestamp,
-    Decimal,
-    Blob,
-    Text,
-  };
-
   void *buffer;
   std::size_t *length;
   std::size_t buffer_length;
   bool *is_null;
   bool *error;
-  Type type;
-
-  Group group() const noexcept {
-    switch(type) {
-      case Bit:
-      case Tiny:
-      case Short:
-      case Long:
-      case LongLong:
-        return Group::Integral;
-      case Float:
-      case Double:
-        return Group::Floating;
-      case Date:
-      case Time:
-      case Datetime:
-      case Timestamp:
-        return Group::Datetime;
-      case Blob:
-      case Text:
-        return Group::Container;
-      case Decimal:
-        return Group::Decimal;
-      default:
-        break;
-    }
-    return Group::Null;
-  }
+  column::Type type;
 };
 
 class BackendIface {
 public:
   virtual ~BackendIface() = default;
-  virtual void bind_param(const BindData *bd, const std::size_t size) = 0;
+  virtual void bind_params(std::span<BoundValue> params) = 0;
   virtual void bind_result(const BindData *bd, const std::size_t size) = 0;
 
   /*virtual void connect() = 0;*/

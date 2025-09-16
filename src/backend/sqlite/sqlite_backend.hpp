@@ -11,7 +11,7 @@ public:
       : db_(nullptr), stmt_(nullptr), truncated_(false), omit_step_(true),
         bind_(nullptr), bind_size_(0) {}
 
-  void bind_param(const BindData *bd, const std::size_t size) override;
+  void bind_params(std::span<BoundValue> params) override;
   void bind_result(const BindData *bd, const std::size_t size) override;
 
   void connect(const char *fname);
@@ -33,6 +33,7 @@ private:
   bool truncated_;
   bool omit_step_;
   const BindData *bind_;
+  const ColumnInfo *info_;
   std::size_t bind_size_;
 };
 } // namespace sqlinq

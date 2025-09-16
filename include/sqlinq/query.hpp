@@ -1,99 +1,299 @@
 #ifndef SQLINQ_QUERY_HPP_
 #define SQLINQ_QUERY_HPP_
 
+#include <cstddef>
+#include <functional>
 #include <tuple>
-#include <vector>
 #include <utility>
-#include <sstream>
-#include <iostream>
-#include <string_view>
 
-#include "sqlinq/database.hpp"
-#include "sqlinq/utility.hpp"
-#include "sqlinq/detail/binding.hpp"
+#include "query_ast.hpp"
+#include "table.hpp"
+#include "type_traits.hpp"
 
 namespace sqlinq {
 
-template <class Entity> class Query {
-public:
-  Query(Database &db) : db_(&db) {}
+class Database;
 
-  auto count(const std::string_view column = "*") -> std::size_t {
-    std::stringstream sql;
-    sql << "SELECT COUNT(" << column;
-    sql << ") FROM " << tableName_ << ss_.str();
-    ss_.str(std::string{});
-    auto result = db_->template exec_res<std::tuple<int>>(sql.str().c_str());
-    return std::get<0>(result[0]);
-  }
+inline AggregateResult<int> count() {
+  return AggregateResult<int>{AggregateExpr::Function::Count, {}};
+}
 
-  auto insert_into(Entity &entity) -> int {
-    std::stringstream sql;
-    sql << "INSERT INTO ";
-    sql << tableName_;
-    sql << " VALUES(" << binding_string() << ')';
-    auto tup = structure_to_tuple(std::forward<Entity>(entity));
-    db_->exec(sql.str().c_str(), tup);
-    return db_->last_inserted_rowid();
-  }
-
-  auto select() -> std::vector<Entity> {
-    std::string sql{"SELECT * FROM " + std::string{tableName_} + ' ' +
-                    ss_.str()};
-    ss_.str(std::string{});
-    return db_->template exec_res<Entity>(sql.c_str());
-  }
-
-  template <typename... Args, std::size_t N>
-  auto select(const std::string_view (&column_names)[N])
-      -> std::vector<std::tuple<Args...>> {
-    static_assert(sizeof...(Args) != 0,
-                  "Result tuple parameter list count cannot be 0");
-    static_assert(
-        sizeof...(Args) == N,
-        "Result tuple parameter list count mismatch column names count");
-    std::stringstream sql;
-    sql << "SELECT ";
-    for (std::size_t i = 0; i < N - 1; i++) {
-      sql << column_names[i] << ',';
+template <typename Entity, typename T>
+inline AggregateResult<int> count(T Entity::*member) {
+  constexpr auto table_schema = Table<Entity>::meta();
+  std::string_view cname;
+  auto offset = reinterpret_cast<std::size_t>(&(((Entity *)0)->*member));
+  for (const auto& column : table_schema.columns) {
+    if (column.offset() == offset) {
+      cname = column.name();
+      break;
     }
-    sql << column_names[N - 1];
-    sql << " FROM " << tableName_ << ss_.str();
-    ss_.str(std::string{});
-    return db_->template exec_res<std::tuple<Args...>>(sql.str().c_str());
   }
+  return AggregateResult<int>{AggregateExpr::Function::Count, cname};
+}
 
-  auto group_by(const char *column) -> Query & {
-    ss_ << " GROUP BY " << column;
-    return *this;
-  }
-
-  auto limit(int n) -> Query & {
-    ss_ << " LIMIT " << n;
-    return *this;
-  }
-
-  auto order_by(const char *column) -> Query & {
-    ss_ << " ORDER BY " << column;
-    return *this;
-  }
-
-  auto where(const char *condition) -> Query & {
-    ss_ << " WHERE " << condition;
-    return *this;
+template <class Entity> class InsertQuery {
+public:
+  using table_t = Table<Entity>;
+  InsertQuery(QueryAst &&ast) : ast_(std::move(ast)) {
+    ast_.table_name = table_info_.name;
   }
 
 private:
-  Database *db_;
-  std::stringstream ss_;
-  static constexpr std::string_view tableName_ = template_type_name<Entity>();
+  QueryAst ast_;
+  friend class Database;
+  static constexpr auto table_info_ = table_t::meta();
+};
 
-  constexpr auto binding_string() -> std::string_view {
-    Entity entity;
-    auto tup = structure_to_tuple(entity);
-    constexpr std::size_t N = std::tuple_size_v<decltype(tup)>;
-    constexpr auto &value = detail::binding_str_holder<Entity, N>::value;
-    return std::string_view{value.data(), value.size()};
+template <class Entity, typename... Args> class SelectQuery {
+public:
+  using table_t = Table<Entity>;
+  using return_type =
+      std::conditional_t<(sizeof...(Args) > 0), std::tuple<Args...>, Entity>;
+
+  SelectQuery(AggregateResult<Args> &&...aggr_fun)
+    requires(sizeof...(Args) > 0)
+  {
+    ast_.op = QueryAst::Operation::Select;
+    ast_.table_name = table_info_.name;
+    (([&](auto &&fn) { ast_.aggr_expr = fn; })(aggr_fun), ...);
+  }
+
+  SelectQuery(ColumnDef<Args> &&...cols) {
+    ast_.op = QueryAst::Operation::Select;
+    ast_.table_name = table_info_.name;
+    (ast_.column_names.push_back(cols.name()), ...);
+  }
+
+  SelectQuery fetch(std::size_t n) & {
+    ast_.fetch = n;
+    return *this;
+  }
+
+  SelectQuery fetch(std::size_t n) && {
+    ast_.fetch = n;
+    return std::move(*this);
+  }
+
+  SelectQuery skip(std::size_t n) & {
+    ast_.skip = n;
+    return *this;
+  }
+
+  SelectQuery skip(std::size_t n) && {
+    ast_.skip = n;
+    return std::move(*this);
+  }
+
+  template <typename T, typename... Ts>
+  SelectQuery group_by(T Entity::*first, Ts Entity::*...rest) & {
+    return group_by_impl(*this, first, rest...);
+  }
+
+  template <typename T, typename... Ts>
+  SelectQuery group_by(T Entity::*first, Ts Entity::*...rest) && {
+    return std::move(group_by_impl(*this, first, rest...));
+  }
+
+  template <typename T, typename... Ts>
+  SelectQuery &order_by(T Entity::*first, Ts Entity::*...rest) & {
+    return order_by_impl(*this, first, rest...);
+  }
+
+  template <typename T, typename... Ts>
+  SelectQuery order_by(T Entity::*first, Ts Entity::*...rest) && {
+    return std::move(order_by_impl(*this, first, rest...));
+  }
+
+  SelectQuery where(std::function<FilterChain(table_t)> &&fn) & {
+    return where_impl(*this, std::move(fn));
+  }
+
+  SelectQuery where(std::function<FilterChain(table_t)> &&fn) && {
+    return std::move(where_impl(*this, std::move(fn)));
+  }
+
+private:
+  QueryAst ast_;
+  friend class Database;
+  static constexpr auto table_info_ = table_t::meta();
+
+  template <typename Self, typename T, typename... Ts>
+  static auto &group_by_impl(Self &&s, T Entity::*first, Ts Entity::*...rest) {
+    table_t table;
+    auto push_cname = [&](auto member_ptr) {
+      auto offset =
+          reinterpret_cast<std::size_t>(&(((Entity *)0)->*member_ptr));
+      for (const auto &col : table_info_.columns) {
+        if (col.offset() == offset) {
+          s.ast_.order_expr.push_back(col.name());
+        }
+      }
+    };
+
+    (push_cname(first), ..., push_cname(rest));
+    return s;
+  }
+
+  template <typename Self, typename T, typename... Ts>
+  static auto &order_by_impl(Self &&s, T Entity::*first, Ts Entity::*...rest) {
+    table_t table;
+    auto push_cname = [&](auto member_ptr) {
+      auto offset =
+          reinterpret_cast<std::size_t>(&(((Entity *)0)->*member_ptr));
+      for (const auto &col : table_info_.columns) {
+        if (col.offset() == offset) {
+          s.ast_.order_expr.push_back(col.name());
+        }
+      }
+    };
+
+    (push_cname(first), ..., push_cname(rest));
+    return s;
+  }
+
+  template <typename Self>
+  static auto &where_impl(Self &&s, std::function<FilterChain(table_t)> &&fn) {
+    table_t table;
+    s.ast_.filter_chain = fn(table);
+    for (auto &expr : s.ast_.filter_chain) {
+      if (expr.kind == FilterExpr::Kind::Leaf) {
+        std::size_t idx = expr.condition.index;
+        expr.condition.column_name = table_info_.columns[idx].name();
+      }
+    }
+    return s;
+  }
+};
+
+template <class Entity> class WhereQuery {
+public:
+  using table_t = Table<Entity>;
+  WhereQuery(QueryAst &&ast) : ast_(std::move(ast)) {
+    ast_.table_name = table_info_.name;
+  }
+
+  WhereQuery where(std::function<FilterChain(table_t)> &&fn) && {
+    return std::move(where_impl(*this, std::move(fn)));
+  }
+
+  WhereQuery where(std::function<FilterChain(table_t)> &&fn) & {
+    return where_impl(*this, std::move(fn));
+  }
+
+private:
+  QueryAst ast_;
+  friend class Database;
+  static constexpr auto table_info_ = table_t::meta();
+
+  template <typename Self>
+  static auto &where_impl(Self &&s, std::function<FilterChain(table_t)> &&fn) {
+    table_t table;
+    s.ast_.filter_chain = fn(table);
+    for (auto &expr : s.ast_.filter_chain) {
+      if (expr.kind == FilterExpr::Kind::Leaf) {
+        std::size_t idx = expr.condition.index;
+        expr.condition.column_name = table_info_.columns[idx].name();
+      }
+    }
+    return s;
+  }
+};
+
+// TODO: trzbea określić czym jest ENTITY (concept)
+template <class Entity> class Query {
+public:
+  using table_t = Table<Entity>;
+  Query() = default;
+
+  auto insert(std::function<void(table_t &)> fn) {
+    table_t table;
+    QueryAst ast;
+    fn(table);
+
+    zip_apply(structure_to_tuple(table), table_info_.columns,
+              [&](auto &col, auto &meta) {
+                if (col.is_set()) {
+                  ast.column_names.push_back(meta.name());
+                  if (col.is_null()) {
+                    ast.values.emplace_back(BoundValue{});
+                  } else {
+                    ast.values.emplace_back(col.value());
+                  }
+                }
+              });
+
+    return InsertQuery<Entity>{std::move(ast)};
+  }
+
+  auto remove() -> WhereQuery<Entity> {
+    QueryAst ast;
+    return WhereQuery<Entity>{std::move(ast)};
+  }
+
+  auto select_all() -> SelectQuery<Entity> { return {}; }
+
+  template <typename T>
+  auto select(AggregateResult<T> &&aggr) -> SelectQuery<Entity, T> {
+    return SelectQuery<Entity, T>{std::move(aggr)};
+  }
+
+  template <typename T, typename... Ts>
+  auto select(T Entity::*first, Ts Entity::*...rest)
+      -> SelectQuery<Entity, T, Ts...> {
+    table_t table;
+
+    auto make_col = [&](auto member_ptr) {
+      using field_t =
+          std::decay_t<decltype(std::declval<Entity>().*member_ptr)>;
+      const char *cname = nullptr;
+
+      auto offset =
+          reinterpret_cast<std::size_t>(&(((Entity *)0)->*member_ptr));
+      for (const auto &col : table_info_.columns) {
+        if (col.offset() == offset) {
+          cname = col.name();
+        }
+      }
+      return ColumnDef<field_t>{cname};
+    };
+
+    return SelectQuery<Entity, T, Ts...>{make_col(first), make_col(rest)...};
+  }
+
+  auto update(std::function<void(table_t &)> fn) {
+    table_t table;
+    QueryAst ast;
+    fn(table);
+
+    zip_apply(structure_to_tuple(table), table_info_.columns,
+              [&](auto &col, auto &meta) {
+                if (col.is_set()) {
+                  ast.column_names.push_back(meta.name());
+                  if (col.is_null()) {
+                    ast.values.emplace_back(BoundValue{});
+                  } else {
+                    ast.values.emplace_back(col.value());
+                  }
+                }
+              });
+
+    ast.op = QueryAst::Operation::Update;
+    return WhereQuery<Entity>{std::move(ast)};
+  }
+
+private:
+  static constexpr auto table_info_ = table_t::meta();
+
+  template <typename Tuple, std::size_t N, typename Pred>
+  void zip_apply(Tuple &&tup, const ColumnSet<N> &info, Pred pred) {
+    std::apply(
+        [&](auto &...col) {
+          [&]<std::size_t... Idx>(std::index_sequence<Idx...>) {
+            (pred(col, info[Idx]), ...);
+          }(std::index_sequence_for<decltype(col)...>{});
+        },
+        tup);
   }
 };
 

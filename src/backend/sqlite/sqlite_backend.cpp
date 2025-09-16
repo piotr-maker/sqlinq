@@ -5,127 +5,6 @@
 #include <stdexcept>
 
 namespace sqlinq {
-
-int bind_numeric_param(sqlite3_stmt *stmt, const int index,
-                       const BindData &bind) {
-  if (bind.buffer == nullptr) {
-    return SQLITE_ERROR;
-  }
-
-  switch (bind.type) {
-  case BindData::Bit: {
-    bool val = *(bool *)bind.buffer;
-    return sqlite3_bind_int(stmt, index, val);
-  }
-  case BindData::Tiny: {
-    int8_t val = *(int8_t *)bind.buffer;
-    return sqlite3_bind_int(stmt, index, val);
-  }
-  case BindData::Short: {
-    int16_t val = *(int16_t *)bind.buffer;
-    return sqlite3_bind_int(stmt, index, val);
-  }
-  case BindData::Long: {
-    int32_t val = *(int32_t *)bind.buffer;
-    return sqlite3_bind_int(stmt, index, val);
-  }
-  case BindData::LongLong: {
-    int64_t val = *(int64_t *)bind.buffer;
-    return sqlite3_bind_int64(stmt, index, val);
-  }
-  default:
-    break;
-  }
-  return SQLITE_ERROR;
-}
-
-int bind_floating_param(sqlite3_stmt *stmt, const int index,
-                        const BindData &bind) {
-  if (bind.buffer == nullptr) {
-    return SQLITE_ERROR;
-  }
-
-  switch (bind.type) {
-  case BindData::Float:
-    return sqlite3_bind_double(stmt, index, *(float *)bind.buffer);
-  case BindData::Double:
-    return sqlite3_bind_double(stmt, index, *(double *)bind.buffer);
-  default:
-    break;
-  }
-  return SQLITE_ERROR;
-}
-
-int bind_container_param(sqlite3_stmt *stmt, const int index,
-                         const BindData &bind) {
-  if (bind.buffer == nullptr || bind.buffer_length == 0) {
-    return SQLITE_ERROR;
-  }
-
-  int length = (int)bind.buffer_length;
-  switch (bind.type) {
-  case BindData::Blob:
-    return sqlite3_bind_blob(stmt, index, bind.buffer, length, NULL);
-  case BindData::Text:
-    return sqlite3_bind_text(stmt, index, (char *)bind.buffer, length, NULL);
-  default:
-    break;
-  }
-  return SQLITE_ERROR;
-}
-
-int bind_datetime_param(sqlite3_stmt *stmt, const int index,
-                        const BindData &bind) {
-  if (bind.buffer == nullptr) {
-    return SQLITE_ERROR;
-  }
-
-  std::string s;
-  switch (bind.type) {
-  case BindData::Date: {
-    sqlinq::Date date;
-    memcpy(&date, bind.buffer, sizeof(date));
-    s = sqlinq::to_string(date);
-    return sqlite3_bind_text(stmt, index, (char *)s.data(), (int)s.size(),
-                             SQLITE_TRANSIENT);
-  }
-  case BindData::Time: {
-    sqlinq::Time time;
-    memcpy(&time, bind.buffer, sizeof(time));
-    s = sqlinq::to_string(time);
-    return sqlite3_bind_text(stmt, index, (char *)s.data(), (int)s.size(),
-                             SQLITE_TRANSIENT);
-  }
-  case BindData::Datetime: {
-    sqlinq::Datetime dt;
-    memcpy(&dt, bind.buffer, sizeof(dt));
-    s = sqlinq::to_string(dt);
-    return sqlite3_bind_text(stmt, index, (char *)s.data(), (int)s.size(),
-                             SQLITE_TRANSIENT);
-  }
-  case BindData::Timestamp: {
-    sqlinq::Timestamp ts;
-    memcpy(&ts, bind.buffer, sizeof(ts));
-    long long count = ts.count();
-    return sqlite3_bind_int64(stmt, index, count);
-  }
-  default:
-    break;
-  }
-  return SQLITE_OK;
-}
-int bind_decimal_param(sqlite3_stmt *stmt, const int index,
-                       const BindData &bind) {
-  if (bind.buffer == nullptr) {
-    return SQLITE_ERROR;
-  }
-
-  sqlinq::Decimal<8, 2> decimal;
-  memcpy(&decimal, bind.buffer, sizeof(decimal));
-  int64_t raw = static_cast<int64_t>(decimal);
-  return sqlite3_bind_int64(stmt, index, raw);
-}
-
 void fetch_numeric_column(sqlite3_stmt *stmt, const int index,
                           const BindData &bind) {
   int col_type = sqlite3_column_type(stmt, index);
@@ -143,19 +22,19 @@ void fetch_numeric_column(sqlite3_stmt *stmt, const int index,
   }
 
   switch (bind.type) {
-  case BindData::Bit:
+  case column::Type::Bit:
     *(bool *)(bind.buffer) = (bool)sqlite3_column_int(stmt, index);
     break;
-  case BindData::Tiny:
+  case column::Type::TinyInt:
     *(char *)(bind.buffer) = (char)sqlite3_column_int(stmt, index);
     break;
-  case BindData::Short:
+  case column::Type::SmallInt:
     *(short *)(bind.buffer) = (short)sqlite3_column_int(stmt, index);
     break;
-  case BindData::Long:
+  case column::Type::Int:
     *(long *)(bind.buffer) = (long)sqlite3_column_int(stmt, index);
     break;
-  case BindData::LongLong:
+  case column::Type::BigInt:
     *(long long *)(bind.buffer) = (long long)sqlite3_column_int64(stmt, index);
     break;
   default:
@@ -180,10 +59,10 @@ void fetch_floating_column(sqlite3_stmt *stmt, const int index,
   }
 
   switch (bind.type) {
-  case BindData::Float:
+  case column::Type::Float:
     *(float *)(bind.buffer) = (float)sqlite3_column_double(stmt, index);
     break;
-  case BindData::Double:
+  case column::Type::Double:
     *(double *)(bind.buffer) = (double)sqlite3_column_double(stmt, index);
     break;
   default:
@@ -199,9 +78,9 @@ bool fetch_container_column(sqlite3_stmt *stmt, const int index,
   assert((type == SQLITE_TEXT || type == SQLITE_BLOB) && "Invalid column type");
   if (bind.buffer != nullptr && bind.buffer_length > 0) {
     const char *data = nullptr;
-    if (bind.type == BindData::Blob) {
+    if (bind.type == column::Type::Blob) {
       data = (const char *)sqlite3_column_blob(stmt, index);
-    } else if (bind.type == BindData::Text) {
+    } else if (bind.type == column::Type::Text) {
       data = (const char *)sqlite3_column_text(stmt, index);
     }
 
@@ -228,13 +107,13 @@ bool fetch_container_column(sqlite3_stmt *stmt, const int index,
 void fetch_datetime_column(sqlite3_stmt *stmt, const int index,
                            const BindData &bind) {
   int col_type = sqlite3_column_type(stmt, index);
-  if (bind.type == BindData::Timestamp) {
+  if (bind.type == column::Type::Timestamp) {
     assert(col_type == SQLITE_INTEGER && "Invalid column type");
   } else {
     assert(col_type == SQLITE_TEXT && "Invalid column type");
   }
   if (bind.error != nullptr) {
-    *bind.error = bind.type == BindData::Timestamp ? col_type == SQLITE_INTEGER
+    *bind.error = bind.type == column::Type::Timestamp ? col_type == SQLITE_INTEGER
                                                    : col_type != SQLITE_TEXT;
   }
 
@@ -248,28 +127,28 @@ void fetch_datetime_column(sqlite3_stmt *stmt, const int index,
 
   const char *data;
   switch (bind.type) {
-  case BindData::Date: {
+  case column::Type::Date: {
     data = (const char *)sqlite3_column_text(stmt, index);
     sqlinq::Date date;
     sqlinq::from_string(data, date);
     memcpy(bind.buffer, (void *)&date, sizeof(date));
     break;
   }
-  case BindData::Time: {
+  case column::Type::Time: {
     data = (const char *)sqlite3_column_text(stmt, index);
     sqlinq::Time time;
     sqlinq::from_string(data, time);
     memcpy(bind.buffer, (void *)&time, sizeof(time));
     break;
   }
-  case BindData::Datetime: {
+  case column::Type::Datetime: {
     data = (const char *)sqlite3_column_text(stmt, index);
     sqlinq::Datetime dt;
     sqlinq::from_string(data, dt);
     memcpy(bind.buffer, (void *)&dt, sizeof(dt));
     break;
   }
-  case BindData::Timestamp: {
+  case column::Type::Timestamp: {
     long long v;
     v = (int64_t)sqlite3_column_int64(stmt, index);
     sqlinq::Timestamp ts{v};
@@ -302,35 +181,58 @@ void fetch_decimal_column(sqlite3_stmt *stmt, const int index,
   memcpy(bind.buffer, (void *)&decimal, sizeof(decimal));
 }
 
-void SQLiteBackend::bind_param(const BindData *bd, const std::size_t size) {
+void SQLiteBackend::bind_params(std::span<BoundValue> params) {
   int rc = SQLITE_OK;
   sqlite3_reset(stmt_);
   sqlite3_clear_bindings(stmt_);
-  for (int index = 1; index <= static_cast<int>(size); index++) {
-    const BindData *bind = &bd[index - 1];
-    if (*bind->is_null) {
-      if (sqlite3_bind_null(stmt_, index)) {
-        throw std::runtime_error(sqlite3_errmsg(db_));
-      }
-      continue;
-    }
-    switch (bind->group()) {
-    case BindData::Group::Integral:
-      rc = bind_numeric_param(stmt_, index, *bind);
+  for (int idx = 1; idx <= static_cast<int>(params.size()); idx++) {
+    std::string s;
+    BoundValue &p = params[std::size_t(idx) - 1];
+    switch (p.type()) {
+    case column::Type::Null:
+      rc = sqlite3_bind_null(stmt_, idx);
       break;
-    case BindData::Group::Floating:
-      rc = bind_floating_param(stmt_, index, *bind);
+    case column::Type::Bit:
+    case column::Type::TinyInt:
+      rc = sqlite3_bind_int64(stmt_, idx, *(int8_t *)p.ptr());
       break;
-    case BindData::Group::Container:
-      rc = bind_container_param(stmt_, index, *bind);
+    case column::Type::SmallInt:
+      rc = sqlite3_bind_int64(stmt_, idx, *(int16_t *)p.ptr());
       break;
-    case BindData::Group::Datetime:
-      rc = bind_datetime_param(stmt_, index, *bind);
+    case column::Type::Int:
+      rc = sqlite3_bind_int64(stmt_, idx, *(int32_t *)p.ptr());
       break;
-    case BindData::Group::Decimal:
-      rc = bind_decimal_param(stmt_, index, *bind);
+    case column::Type::BigInt:
+    case column::Type::Decimal:
+    case column::Type::Timestamp:
+      rc = sqlite3_bind_int64(stmt_, idx, *(int64_t *)p.ptr());
       break;
-    default:
+    case column::Type::Float:
+      rc = sqlite3_bind_double(stmt_, idx, *(float *)p.ptr());
+      break;
+    case column::Type::Double:
+      rc = sqlite3_bind_double(stmt_, idx, *(double *)p.ptr());
+      break;
+    case column::Type::Blob:
+      rc = sqlite3_bind_blob(stmt_, idx, (char *)p.ptr(), (int)p.size(), NULL);
+      break;
+    case column::Type::Text:
+      rc = sqlite3_bind_text(stmt_, idx, (char *)p.ptr(), (int)p.size(), NULL);
+      break;
+    case column::Type::Date:
+      s = sqlinq::to_string(*(Date *)p.ptr());
+      rc = sqlite3_bind_text(stmt_, idx, (char *)s.data(), (int)s.size(),
+                             SQLITE_TRANSIENT);
+      break;
+    case column::Type::Time:
+      s = sqlinq::to_string(*(Time *)p.ptr());
+      rc = sqlite3_bind_text(stmt_, idx, (char *)s.data(), (int)s.size(),
+                             SQLITE_TRANSIENT);
+      break;
+    case column::Type::Datetime:
+      s = sqlinq::to_string(*(Datetime *)p.ptr());
+      rc = sqlite3_bind_text(stmt_, idx, (char *)s.data(), (int)s.size(),
+                             SQLITE_TRANSIENT);
       break;
     }
 
@@ -402,20 +304,29 @@ ExecStatus SQLiteBackend::stmt_fetch() {
       *bind->is_null = true;
       continue;
     }
-    switch (bind->group()) {
-    case BindData::Group::Integral:
+    switch (bind->type) {
+    case column::Type::Bit:
+    case column::Type::TinyInt:
+    case column::Type::SmallInt:
+    case column::Type::Int:
+    case column::Type::BigInt:
       fetch_numeric_column(stmt_, index, *bind);
       break;
-    case BindData::Group::Floating:
+    case column::Type::Float:
+    case column::Type::Double:
       fetch_floating_column(stmt_, index, *bind);
       break;
-    case BindData::Group::Container:
+    case column::Type::Text:
+    case column::Type::Blob:
       truncated_ = fetch_container_column(stmt_, index, *bind);
       break;
-    case BindData::Group::Datetime:
+    case column::Type::Date:
+    case column::Type::Time:
+    case column::Type::Datetime:
+    case column::Type::Timestamp:
       fetch_datetime_column(stmt_, index, *bind);
       break;
-    case BindData::Group::Decimal:
+    case column::Type::Decimal:
       fetch_decimal_column(stmt_, index, *bind);
       break;
     default:

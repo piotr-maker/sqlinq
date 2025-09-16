@@ -121,6 +121,41 @@ inline std::vector<TestModel> db_rows = {
      .datetime_v = sqlinq::Datetime{std::chrono::seconds{946684799}},
      .timestamp_v = sqlinq::Timestamp{946684799}}};
 
+namespace helper {
+template <typename T>
+sqlinq::BoundValue bind_value(const T& val) {
+  using namespace sqlinq;
+  return BoundValue{&val, 0, details::column_type_of<T>()};
+}
+
+template <typename T>
+sqlinq::BoundValue bind_value(std::optional<T>& val) {
+  using namespace sqlinq;
+  if (val.has_value()) {
+    return bind_value(val.value());
+  }
+  return BoundValue{};
+}
+
+template <std::size_t P, std::size_t S>
+inline sqlinq::BoundValue bind_value(const sqlinq::Decimal<P, S>& d) {
+  using namespace sqlinq;
+  return BoundValue{d};
+}
+
+template <>
+inline sqlinq::BoundValue bind_value<sqlinq::Blob>(const sqlinq::Blob& b) {
+  using namespace sqlinq;
+  return BoundValue{b.data(), b.size(), details::column_type_of<Blob>()};
+}
+
+template <>
+inline sqlinq::BoundValue bind_value<std::string>(const std::string& s) {
+  using namespace sqlinq;
+  return BoundValue{s.data(), s.size(), details::column_type_of<std::string>()};
+}
+}
+
 class TestBindData {
 public:
   static constexpr std::size_t size = TestModel::column_count;
@@ -131,205 +166,128 @@ public:
     memset(error_, 0, sizeof(bool) * size);
   }
 
-  void bind_param(TestModel &model) {
-    is_null_[0] = !model.id.has_value();
-    bind_[0].type = sqlinq::BindData::LongLong;
-    bind_[0].buffer = model.id.has_value() ? &model.id.value() : nullptr;
-    bind_[0].buffer_length = 0;
-    bind_[0].length = &length_[0];
-    bind_[0].is_null = &is_null_[0];
-
-    bind_[1].type = sqlinq::BindData::Tiny;
-    bind_[1].buffer = &model.tiny_int_v;
-    bind_[1].buffer_length = 0;
-    bind_[1].length = &length_[1];
-    bind_[1].is_null = &is_null_[1];
-
-    bind_[2].type = sqlinq::BindData::Short;
-    bind_[2].buffer = &model.small_int_v;
-    bind_[2].buffer_length = 0;
-    bind_[2].length = &length_[2];
-    bind_[2].is_null = &is_null_[2];
-
-    bind_[3].type = sqlinq::BindData::Long;
-    bind_[3].buffer = &model.int_v;
-    bind_[3].buffer_length = 0;
-    bind_[3].length = &length_[3];
-    bind_[3].is_null = &is_null_[3];
-
-    bind_[4].type = sqlinq::BindData::LongLong;
-    bind_[4].buffer = &model.big_int_v;
-    bind_[4].buffer_length = 0;
-    bind_[4].length = &length_[4];
-    bind_[4].is_null = &is_null_[4];
-
-    bind_[5].type = sqlinq::BindData::Float;
-    bind_[5].buffer = &model.float_v;
-    bind_[5].buffer_length = 0;
-    bind_[5].length = &length_[5];
-    bind_[5].is_null = &is_null_[5];
-
-    bind_[6].type = sqlinq::BindData::Double;
-    bind_[6].buffer = &model.double_v;
-    bind_[6].buffer_length = 0;
-    bind_[6].length = &length_[6];
-    bind_[6].is_null = &is_null_[6];
-
-    bind_[7].type = sqlinq::BindData::Decimal;
-    bind_[7].buffer = &model.decimal_v;
-    bind_[7].buffer_length = 0;
-    bind_[7].length = &length_[7];
-    bind_[7].is_null = &is_null_[7];
-
-    length_[8] = model.blob_v.size();
-    bind_[8].type = sqlinq::BindData::Blob;
-    bind_[8].buffer = model.blob_v.data();
-    bind_[8].buffer_length = model.blob_v.size();
-    bind_[8].length = &length_[8];
-    bind_[8].is_null = &is_null_[8];
-
-    length_[9] = model.text_v.has_value() ? model.text_v->size() : 0;
-    is_null_[9] = !model.text_v.has_value();
-    bind_[9].type = sqlinq::BindData::Text;
-    bind_[9].buffer =
-        model.text_v.has_value() ? model.text_v->data() : nullptr;
-    bind_[9].buffer_length =
-        model.text_v.has_value() ? model.text_v->size() : 0;
-    bind_[9].length = &length_[9];
-    bind_[9].is_null = &is_null_[9];
-
-    bind_[10].type = sqlinq::BindData::Bit;
-    bind_[10].buffer = &model.bool_v;
-    bind_[10].buffer_length = 0;
-    bind_[10].length = &length_[10];
-    bind_[10].is_null = &is_null_[10];
-
-    bind_[11].type = sqlinq::BindData::Date;
-    bind_[11].buffer = &model.date_v;
-    bind_[11].buffer_length = 0;
-    bind_[11].length = &length_[11];
-    bind_[11].is_null = &is_null_[11];
-
-    bind_[12].type = sqlinq::BindData::Time;
-    bind_[12].buffer = &model.time_v;
-    bind_[12].buffer_length = 0;
-    bind_[12].length = &length_[12];
-    bind_[12].is_null = &is_null_[12];
-
-    bind_[13].type = sqlinq::BindData::Datetime;
-    bind_[13].buffer = &model.datetime_v;
-    bind_[13].buffer_length = 0;
-    bind_[13].length = &length_[13];
-    bind_[13].is_null = &is_null_[13];
-
-    bind_[14].type = sqlinq::BindData::Timestamp;
-    bind_[14].buffer = &model.timestamp_v;
-    bind_[14].buffer_length = 0;
-    bind_[14].length = &length_[14];
-    bind_[14].is_null = &is_null_[14];
+  std::vector<sqlinq::BoundValue> bind_param(TestModel &model) {
+    using namespace sqlinq;
+    std::vector<BoundValue> result;
+    result.emplace_back(helper::bind_value(model.id));
+    result.emplace_back(helper::bind_value(model.tiny_int_v));
+    result.emplace_back(helper::bind_value(model.small_int_v));
+    result.emplace_back(helper::bind_value(model.int_v));
+    result.emplace_back(helper::bind_value(model.big_int_v));
+    result.emplace_back(helper::bind_value(model.float_v));
+    result.emplace_back(helper::bind_value(model.double_v));
+    result.emplace_back(helper::bind_value(model.decimal_v));
+    result.emplace_back(helper::bind_value(model.blob_v));
+    result.emplace_back(helper::bind_value(model.text_v));
+    result.emplace_back(helper::bind_value(model.bool_v));
+    result.emplace_back(helper::bind_value(model.date_v));
+    result.emplace_back(helper::bind_value(model.time_v));
+    result.emplace_back(helper::bind_value(model.datetime_v));
+    result.emplace_back(helper::bind_value(model.timestamp_v));
+    return result;
   }
 
   void bind_result(TestModel &model) {
     model.id.emplace();
-    bind_[0].type = sqlinq::BindData::LongLong;
+    bind_[0].type = sqlinq::column::Type::BigInt;
     bind_[0].buffer = &model.id.value();
     bind_[0].buffer_length = 0;
     bind_[0].length = &length_[0];
     bind_[0].is_null = &is_null_[0];
     bind_[0].error = &error_[0];
 
-    bind_[1].type = sqlinq::BindData::Tiny;
+    bind_[1].type = sqlinq::column::Type::TinyInt;
     bind_[1].buffer = &model.tiny_int_v;
     bind_[1].buffer_length = 0;
     bind_[1].length = &length_[1];
     bind_[1].is_null = &is_null_[1];
     bind_[1].error = &error_[1];
 
-    bind_[2].type = sqlinq::BindData::Short;
+    bind_[2].type = sqlinq::column::Type::SmallInt;
     bind_[2].buffer = &model.small_int_v;
     bind_[2].buffer_length = 0;
     bind_[2].length = &length_[2];
     bind_[2].is_null = &is_null_[2];
     bind_[2].error = &error_[2];
 
-    bind_[3].type = sqlinq::BindData::Long;
+    bind_[3].type = sqlinq::column::Type::Int;
     bind_[3].buffer = &model.int_v;
     bind_[3].buffer_length = 0;
     bind_[3].length = &length_[3];
     bind_[3].is_null = &is_null_[3];
     bind_[3].error = &error_[3];
 
-    bind_[4].type = sqlinq::BindData::LongLong;
+    bind_[4].type = sqlinq::column::Type::BigInt;
     bind_[4].buffer = &model.big_int_v;
     bind_[4].buffer_length = 0;
     bind_[4].length = &length_[4];
     bind_[4].is_null = &is_null_[4];
     bind_[4].error = &error_[4];
 
-    bind_[5].type = sqlinq::BindData::Float;
+    bind_[5].type = sqlinq::column::Type::Float;
     bind_[5].buffer = &model.float_v;
     bind_[5].buffer_length = 0;
     bind_[5].length = &length_[5];
     bind_[5].is_null = &is_null_[5];
     bind_[5].error = &error_[5];
 
-    bind_[6].type = sqlinq::BindData::Double;
+    bind_[6].type = sqlinq::column::Type::Double;
     bind_[6].buffer = &model.double_v;
     bind_[6].buffer_length = 0;
     bind_[6].length = &length_[6];
     bind_[6].is_null = &is_null_[6];
     bind_[6].error = &error_[6];
 
-    bind_[7].type = sqlinq::BindData::Decimal;
+    bind_[7].type = sqlinq::column::Type::Decimal;
     bind_[7].buffer = &model.decimal_v;
     bind_[7].buffer_length = 0;
     bind_[7].length = &length_[7];
     bind_[7].is_null = &is_null_[7];
     bind_[7].error = &error_[7];
 
-    bind_[8].type = sqlinq::BindData::Blob;
+    bind_[8].type = sqlinq::column::Type::Blob;
     bind_[8].buffer = nullptr;
     bind_[8].buffer_length = 0;
     bind_[8].length = &length_[8];
     bind_[8].is_null = &is_null_[8];
     bind_[8].error = &error_[8];
 
-    bind_[9].type = sqlinq::BindData::Text;
+    bind_[9].type = sqlinq::column::Type::Text;
     bind_[9].buffer = nullptr;
     bind_[9].buffer_length = 0;
     bind_[9].length = &length_[9];
     bind_[9].is_null = &is_null_[9];
     bind_[9].error = &error_[9];
 
-    bind_[10].type = sqlinq::BindData::Bit;
+    bind_[10].type = sqlinq::column::Type::Bit;
     bind_[10].buffer = &model.bool_v;
     bind_[10].buffer_length = 0;
     bind_[10].length = &length_[10];
     bind_[10].is_null = &is_null_[10];
     bind_[10].error = &error_[10];
 
-    bind_[11].type = sqlinq::BindData::Date;
+    bind_[11].type = sqlinq::column::Type::Date;
     bind_[11].buffer = &model.date_v;
     bind_[11].buffer_length = 0;
     bind_[11].length = &length_[11];
     bind_[11].is_null = &is_null_[11];
     bind_[11].error = &error_[11];
 
-    bind_[12].type = sqlinq::BindData::Time;
+    bind_[12].type = sqlinq::column::Type::Time;
     bind_[12].buffer = &model.time_v;
     bind_[12].buffer_length = 0;
     bind_[12].length = &length_[12];
     bind_[12].is_null = &is_null_[12];
     bind_[12].error = &error_[12];
 
-    bind_[13].type = sqlinq::BindData::Datetime;
+    bind_[13].type = sqlinq::column::Type::Datetime;
     bind_[13].buffer = &model.datetime_v;
     bind_[13].buffer_length = 0;
     bind_[13].length = &length_[13];
     bind_[13].is_null = &is_null_[13];
     bind_[13].error = &error_[13];
 
-    bind_[14].type = sqlinq::BindData::Timestamp;
+    bind_[14].type = sqlinq::column::Type::Timestamp;
     bind_[14].buffer = &model.timestamp_v;
     bind_[14].buffer_length = 0;
     bind_[14].length = &length_[14];
