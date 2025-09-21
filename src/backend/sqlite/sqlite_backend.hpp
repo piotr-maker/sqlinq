@@ -14,8 +14,8 @@ public:
   void bind_params(std::span<BoundValue> params) override;
   void bind_result(const BindData *bd, const std::size_t size) override;
 
-  void connect(const char *fname);
-  void disconnect();
+  void connect(const DatabaseConfig& cfg) override;
+  void disconnect() override;
   bool is_connected() const noexcept override { return db_ != nullptr; }
 
   uint64_t last_inserted_rowid() const noexcept override;

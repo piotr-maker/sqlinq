@@ -12,8 +12,8 @@ public:
   MOCK_METHOD(void, bind_result, (const BindData *, const std::size_t),
               (override));
 
-  /*MOCK_METHOD(void, connect, (), (override));*/
-  /*MOCK_METHOD(void, disconnect, (), (override));*/
+  MOCK_METHOD(void, connect, (const DatabaseConfig&), (override));
+  MOCK_METHOD(void, disconnect, (), (override));
   MOCK_METHOD(bool, is_connected, (), (const, noexcept, override));
 
   MOCK_METHOD(uint64_t, last_inserted_rowid, (), (const, noexcept, override));

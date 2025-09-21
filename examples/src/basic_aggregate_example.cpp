@@ -7,29 +7,30 @@
 
 #include <cstdlib>
 #include <exception>
-/*#include <sqlinq/config.hpp>*/
+#include <filesystem>
+#include <sqlinq/config.hpp>
 #include <sqlinq/database.hpp>
 #include <sqlinq/query.hpp>
+#include <sqlite_backend.hpp>
 
 #include "model.hpp"
-#include "mysql_backend.hpp"
-#include "sqlite_backend.hpp"
 
 using namespace std;
-using namespace sqlinq;
 
 int main() {
-  MySQLBackend mysql;
-  mysql.connect("localhost", "piotr", "passwd", "personnel");
-  SQLiteBackend sqlite;
-  sqlite.connect("personnel.sqlite3");
+  auto db_path = std::filesystem::path{SQLITE_DB_FILE};
+  sqlinq::DatabaseConfig cfg{};
+  cfg.database = db_path.string();
 
-  Database db{mysql};
+  sqlinq::SQLiteBackend sqlite;
+  sqlite.connect(cfg);
+
+  sqlinq::Database db{sqlite};
 
   // count all records
   {
     int64_t employee_count{};
-    auto q = Query<Employees>().select(count());
+    auto q = sqlinq::Query<Employees>().select(sqlinq::count());
     try {
       auto cursor = db.execute(q);
       cursor.next();
@@ -43,7 +44,8 @@ int main() {
   // count records by column
   {
     int64_t manager_count{};
-    auto q = Query<Employees>().select(count(&Employees::manager).distinct());
+    auto q = sqlinq::Query<Employees>().select(
+        sqlinq::count(&Employees::manager).distinct());
     try {
       auto cursor = db.execute(q);
       cursor.next();

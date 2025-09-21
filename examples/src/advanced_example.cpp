@@ -1,35 +1,43 @@
 /**
  * LINQ-style Query Example
- * 
+ *
  * Demonstrates query building in a LINQ-like fluent API style. Shows how to
  * select, filter and sort records without writing raw SQL.
  */
 
 #include <cstdlib>
 #include <exception>
-/*#include <sqlinq/config.hpp>*/
+#include <mysql_backend.hpp>
+#include <sqlinq/config.hpp>
 #include <sqlinq/database.hpp>
 #include <sqlinq/query.hpp>
 
 #include "model.hpp"
-#include "mysql_backend.hpp"
 #include "record.hpp"
-#include "sqlite_backend.hpp"
 
 using namespace std;
-using namespace sqlinq;
 
-int main() {
-  MySQLBackend mysql;
-  mysql.connect("localhost", "piotr", "passwd", "personnel");
-  SQLiteBackend sqlite;
-  sqlite.connect("personnel.sqlite3");
+int main(int argc, char *argv[]) {
+  if (argc != 2) {
+    std::cout << "Usage: " << '\n';
+    std::cout << "  " << argv[0] << " /path/to/config" << '\n';
+    return EXIT_FAILURE;
+  }
 
-  Database db{mysql};
+  auto cfgs = sqlinq::parse_config_file(argv[1]);
+  sqlinq::MySQLBackend mysql;
+  try {
+    mysql.connect(cfgs.at("mysql"));
+  } catch(const std::exception &ex) {
+    std::cout << ex.what() << '\n';
+    return EXIT_FAILURE;
+  }
+
+  sqlinq::Database db{mysql};
 
   // simple select model with filtering and sorting
   {
-    auto q = Query<Jobs>()
+    auto q = sqlinq::Query<Jobs>()
                  .select_all()
                  .order_by(&Jobs::max_salary)
                  .where([](const auto &job) { return job.id > 8; });
@@ -41,7 +49,7 @@ int main() {
     }
 
     for (const auto &job : jobs) {
-      auto tup = structure_to_tuple(job);
+      auto tup = sqlinq::structure_to_tuple(job);
       print_record(std::forward<decltype(tup)>(tup));
     }
     std::cout << '\n';
@@ -49,7 +57,7 @@ int main() {
 
   // select data from specific columns
   {
-    auto q = Query<Employees>()
+    auto q = sqlinq::Query<Employees>()
                  .select(&Employees::id, &Employees::first_name,
                          &Employees::last_name)
                  .order_by(&Employees::last_name)
@@ -69,7 +77,7 @@ int main() {
 
   // update employee
   {
-    auto q = Query<Employees>()
+    auto q = sqlinq::Query<Employees>()
                  .update([](auto &e) { e.phone_number = "515.123.4568"; })
                  .where([](const auto &e) { return e.id == 100; });
     try {
@@ -81,7 +89,7 @@ int main() {
 
   // create country
   {
-    auto q = Query<Countries>().insert(
+    auto q = sqlinq::Query<Countries>().insert(
         [](auto &c) { c.id = "PL", c.name = "Poland", c.region = 1; });
     try {
       db.execute(q);
@@ -92,7 +100,7 @@ int main() {
 
   // delete country
   {
-    auto q = Query<Countries>().remove().where(
+    auto q = sqlinq::Query<Countries>().remove().where(
         [](const auto &c) { return c.id == "PL"; });
     try {
       db.execute(q);
