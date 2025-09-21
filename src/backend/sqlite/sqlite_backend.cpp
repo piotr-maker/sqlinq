@@ -1,4 +1,5 @@
 #include "sqlite_backend.hpp"
+#include "sqlinq/config.hpp"
 #include <cassert>
 #include <cstring>
 #include <sqlinq/types.h>
@@ -247,9 +248,13 @@ void SQLiteBackend::bind_result(const BindData *bd, const std::size_t size) {
   bind_size_ = size;
 }
 
-void SQLiteBackend::connect(const char *fname) {
-  if (int rc = sqlite3_open(fname, &db_); rc != SQLITE_OK) {
-    throw std::runtime_error("Failed to open database");
+void SQLiteBackend::connect(const DatabaseConfig &cfg) {
+  auto fname = cfg.database;
+  if (fname.empty()) {
+    throw std::runtime_error("sqlite database field required");
+  }
+  if (int rc = sqlite3_open(fname.c_str(), &db_); rc != SQLITE_OK) {
+    throw std::runtime_error("Failed to open database: " + fname);
   }
 }
 

@@ -6,24 +6,24 @@
  */
 
 #include <cstdlib>
-/*#include <sqlinq/config.hpp>*/
+#include <filesystem>
 #include <sqlinq/database.hpp>
 #include <sqlinq/query.hpp>
 
 #include "model.hpp"
-#include "mysql_backend.hpp"
 #include "sqlite_backend.hpp"
 
 using namespace std;
-using namespace sqlinq;
 
 int main() {
-  MySQLBackend mysql;
-  mysql.connect("localhost", "piotr", "passwd", "personnel");
-  SQLiteBackend sqlite;
-  sqlite.connect("personnel.sqlite3");
+  auto db_path = std::filesystem::path{SQLITE_DB_FILE};
+  sqlinq::DatabaseConfig cfg{};
+  cfg.database = db_path.string();
 
-  Database db{mysql};
+  sqlinq::SQLiteBackend sqlite;
+  sqlite.connect(cfg);
+
+  sqlinq::Database db{sqlite};
 
   Jobs job{.id = 0,
            .title = "Software Engineer",
@@ -46,7 +46,7 @@ int main() {
 
   // Update record
   if (result) {
-    result->max_salary = Decimal<8, 2>{"9000.00"};
+    result->max_salary = sqlinq::Decimal<8, 2>{"9000.00"};
     db.update(*result);
   }
 

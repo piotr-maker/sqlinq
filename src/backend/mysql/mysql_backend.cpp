@@ -198,16 +198,22 @@ void MySQLBackend::bind_result(const BindData *bd, const std::size_t size) {
   }
 }
 
-void MySQLBackend::connect(const char *host, const char *user,
-                           const char *passwd, const char *db) {
+void MySQLBackend::connect(const DatabaseConfig &cfg) {
   db_ = mysql_init(NULL);
   if (db_ == nullptr) {
     throw std::bad_alloc();
   }
 
-  db_ = mysql_real_connect(db_, host, user, passwd, db, 0, NULL, 0);
+  auto host = cfg.host.empty() ? "localhost" : cfg.host;
+  uint port = static_cast<uint>(cfg.port);
+  auto user = cfg.user;
+  auto pass = cfg.passwd;
+  auto db = cfg.database;
+  db_ = mysql_real_connect(db_, host.c_str(), user.c_str(), pass.c_str(),
+                           db.c_str(), port, NULL, 0);
   if (db_ == nullptr) {
-    throw(std::runtime_error(mysql_error(db_)));
+    throw(std::runtime_error("MySQL connection failed " +
+                             std::string(mysql_error(db_))));
   }
 }
 

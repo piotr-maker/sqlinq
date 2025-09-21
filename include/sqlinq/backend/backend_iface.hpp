@@ -1,6 +1,7 @@
 #ifndef SQLINQ_BACKEND_IFACE_HPP_
 #define SQLINQ_BACKEND_IFACE_HPP_
 
+#include "sqlinq/config.hpp"
 #include "sqlinq/table.hpp"
 #include "sqlinq/query_ast.hpp"
 #include <cstdint>
@@ -31,8 +32,8 @@ public:
   virtual void bind_params(std::span<BoundValue> params) = 0;
   virtual void bind_result(const BindData *bd, const std::size_t size) = 0;
 
-  /*virtual void connect() = 0;*/
-  /*virtual void disconnect() = 0;*/
+  virtual void connect(const DatabaseConfig& cfg) = 0;
+  virtual void disconnect() = 0;
   virtual bool is_connected() const noexcept = 0;
   virtual uint64_t last_inserted_rowid() const noexcept = 0;
 

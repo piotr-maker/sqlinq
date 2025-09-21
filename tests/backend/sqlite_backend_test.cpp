@@ -10,6 +10,7 @@ using namespace sqlinq;
 class SQLiteBackendTest : public ::testing::Test {
 protected:
   SQLiteBackend backend_;
+  DatabaseConfig cfg_{};
   const char *create_query_ = R"(CREATE TABLE test (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   tiny_int_v INTEGER NOT NULL,
@@ -52,7 +53,8 @@ protected:
 ;)";
 
   void SetUp() override {
-    backend_.connect(":memory:");
+    cfg_.database = ":memory:";
+    backend_.connect(cfg_);
     /*backend_.connect("test.sqlite3");*/
     ASSERT_TRUE(backend_.is_connected());
 
