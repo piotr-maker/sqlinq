@@ -11,7 +11,7 @@
 #include <sqlinq/config.hpp>
 #include <sqlinq/database.hpp>
 #include <sqlinq/query.hpp>
-#include <sqlite_backend.hpp>
+#include <sqlinq/sqlite_backend.hpp>
 
 #include "model.hpp"
 

@@ -9,9 +9,9 @@
 #include <filesystem>
 #include <sqlinq/database.hpp>
 #include <sqlinq/query.hpp>
+#include <sqlinq/sqlite_backend.hpp>
 
 #include "model.hpp"
-#include "sqlite_backend.hpp"
 
 using namespace std;
 

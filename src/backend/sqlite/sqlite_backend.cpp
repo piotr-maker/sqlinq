@@ -1,4 +1,4 @@
-#include "sqlite_backend.hpp"
+#include "include/sqlinq/sqlite_backend.hpp"
 #include "sqlinq/config.hpp"
 #include <cassert>
 #include <cstring>

@@ -7,9 +7,9 @@
 
 #include <cstdlib>
 #include <exception>
-#include <mysql_backend.hpp>
 #include <sqlinq/config.hpp>
 #include <sqlinq/database.hpp>
+#include <sqlinq/mysql_backend.hpp>
 #include <sqlinq/query.hpp>
 
 #include "model.hpp"
@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
   sqlinq::MySQLBackend mysql;
   try {
     mysql.connect(cfgs.at("mysql"));
-  } catch(const std::exception &ex) {
+  } catch (const std::exception &ex) {
     std::cout << ex.what() << '\n';
     return EXIT_FAILURE;
   }
