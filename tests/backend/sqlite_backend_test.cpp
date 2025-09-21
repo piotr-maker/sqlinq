@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <sqlite_backend.hpp>
+#include <sqlinq/sqlite_backend.hpp>
 
 #include <cstring>
 

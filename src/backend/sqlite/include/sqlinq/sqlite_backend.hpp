@@ -14,7 +14,7 @@ public:
   void bind_params(std::span<BoundValue> params) override;
   void bind_result(const BindData *bd, const std::size_t size) override;
 
-  void connect(const DatabaseConfig& cfg) override;
+  void connect(const DatabaseConfig &cfg) override;
   void disconnect() override;
   bool is_connected() const noexcept override { return db_ != nullptr; }
 

@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <mysql_backend.hpp>
+#include <sqlinq/mysql_backend.hpp>
 
 #include <cstring>
 

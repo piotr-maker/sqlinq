@@ -141,6 +141,7 @@ Planned features and improvements for SQLinq:
 * C++20 or higher
 * CMake version 3.16 or higher
 * SQL database development package installed (MySQL, SQLite3)
+  _If SQLite3 is not installed system-wide, the library will automatically download and build it using CMake FetchContent_
 
 ## License
 SQLinq is available under the MIT license.

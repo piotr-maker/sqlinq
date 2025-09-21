@@ -1,4 +1,4 @@
-#include "mysql_backend.hpp"
+#include "include/sqlinq/mysql_backend.hpp"
 #include "sqlinq/types/decimal.hpp"
 #include <algorithm>
 #include <cassert>
