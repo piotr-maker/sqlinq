@@ -9,14 +9,16 @@
 namespace sqlinq {
 class MySQLBackend final : public BackendIface {
 public:
-  explicit MySQLBackend() : db_(nullptr), stmt_(nullptr), result_(nullptr) {}
+  explicit MySQLBackend() : conn_(nullptr), mysql_(nullptr), stmt_(nullptr) {}
+
+  ~MySQLBackend();
 
   void bind_params(std::span<BoundValue> params) override;
   void bind_result(const BindData *bd, const std::size_t size) override;
 
   void connect(const DatabaseConfig &cfg) override;
   void disconnect() override;
-  bool is_connected() const noexcept override { return db_ != nullptr; }
+  bool is_connected() const noexcept override { return conn_ != nullptr; }
 
   uint64_t last_inserted_rowid() const noexcept override;
 
@@ -34,11 +36,10 @@ private:
   void map_bind_result(const sqlinq::BindData *bd, MYSQL_BIND *mb);
 
 private:
-  MYSQL *db_;
+  MYSQL *conn_;
+  MYSQL *mysql_;
   MYSQL_STMT *stmt_;
-  MYSQL_RES *result_;
   const BindData *bind_;
-  const ColumnInfo *info_;
   std::size_t bind_size_;
   IntermediateStorage<4096> storage_;
   std::unique_ptr<MYSQL_BIND[]> my_bind_;

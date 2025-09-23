@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <sqlinq/config.hpp>
 #include <sqlinq/sqlite_backend.hpp>
 
 #include <cstring>
@@ -10,7 +11,6 @@ using namespace sqlinq;
 class SQLiteBackendTest : public ::testing::Test {
 protected:
   SQLiteBackend backend_;
-  DatabaseConfig cfg_{};
   const char *create_query_ = R"(CREATE TABLE test (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   tiny_int_v INTEGER NOT NULL,
@@ -53,9 +53,8 @@ protected:
 ;)";
 
   void SetUp() override {
-    cfg_.database = ":memory:";
-    backend_.connect(cfg_);
-    /*backend_.connect("test.sqlite3");*/
+    auto cfgs = parse_env_config({"sqlite"});
+    backend_.connect(cfgs.at("sqlite"));
     ASSERT_TRUE(backend_.is_connected());
 
     backend_.stmt_init();

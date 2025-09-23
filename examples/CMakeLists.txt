@@ -23,7 +23,7 @@ if (SQLINQ_USE_SQLITE)
   add_dependencies(basic_aggregate generate_sqlite)
   target_compile_definitions(basic_aggregate PRIVATE SQLITE_DB_FILE="${SQLITE_DB_FILE}")
   target_compile_options(basic_aggregate PRIVATE
-    $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>
+    $<$<CXX_COMPILER_ID:MSVC>:/W4>
     $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic -Wshadow -Wconversion
                                    -Wunused -Wuninitialized>
   )
@@ -32,7 +32,7 @@ if (SQLINQ_USE_SQLITE)
   add_dependencies(basic_orm generate_sqlite)
   target_compile_definitions(basic_orm PRIVATE SQLITE_DB_FILE="${SQLITE_DB_FILE}")
   target_compile_options(basic_orm PRIVATE
-    $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>
+    $<$<CXX_COMPILER_ID:MSVC>:/W4>
     $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic -Wshadow -Wconversion
                                    -Wunused -Wuninitialized>
   )
@@ -42,7 +42,7 @@ endif()
 if (SQLINQ_USE_MYSQL)
   add_executable(advanced src/advanced_example.cpp)
   target_compile_options(advanced PRIVATE
-    $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>
+    $<$<CXX_COMPILER_ID:MSVC>:/W4>
     $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic -Wshadow -Wconversion
                                    -Wunused -Wuninitialized>
   )

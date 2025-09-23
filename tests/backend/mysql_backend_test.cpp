@@ -4,6 +4,7 @@
 #include <cstring>
 
 #include "sqlinq/backend/backend_iface.hpp"
+#include "sqlinq/config.hpp"
 #include "test_model.hpp"
 
 using namespace sqlinq;
@@ -11,12 +12,6 @@ using namespace sqlinq;
 class MySQLBackendTest : public ::testing::Test {
 protected:
   MySQLBackend backend_;
-  DatabaseConfig cfg_{.host = "localhost",
-                      .port = 3306,
-                      .user = "piotr",
-                      .passwd = "passwd",
-                      .database = "personnel"};
-
   const char *create_query_ = R"(CREATE TABLE test (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   tiny_int_v TINYINT NOT NULL,
@@ -59,7 +54,8 @@ protected:
 ;)";
 
   void SetUp() override {
-    backend_.connect(cfg_);
+    auto cfgs = parse_env_config({"mysql"});
+    backend_.connect(cfgs.at("mysql"));
     ASSERT_TRUE(backend_.is_connected());
 
     backend_.stmt_init();

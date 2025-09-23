@@ -5,6 +5,7 @@ project(sqlinq VERSION 0.2.0)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
+include(cmake/sanitizers.cmake)
 option(SQLINQ_BUILD_TESTS "Build tests" OFF)
 option(SQLINQ_BUILD_EXAMPLES "Build examples" OFF)
 

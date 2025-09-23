@@ -6,7 +6,7 @@
 #include <iomanip>
 
 #ifdef _WIN32
-  #define timegm _mkgmtime
+#define timegm _mkgmtime
 #endif
 
 namespace sqlinq {
@@ -15,23 +15,28 @@ using namespace std;
 
 std::string to_string(const Date &d) {
   std::ostringstream oss;
-  oss << std::setw(4) << int(d.year()) << '-'
-    << std::setw(2) << std::setfill('0') << unsigned(d.month()) << '-'
-    << std::setw(2) << std::setfill('0') << unsigned(d.day());
+  oss << std::setw(4) << int(d.year()) << '-' << std::setw(2)
+      << std::setfill('0') << unsigned(d.month()) << '-' << std::setw(2)
+      << std::setfill('0') << unsigned(d.day());
   return oss.str();
 };
 
 std::string to_string(const Time &t) {
   std::ostringstream oss;
   oss << std::setw(2) << std::setfill('0') << t.hours().count() << ':'
-    << std::setw(2) << std::setfill('0') << t.minutes().count() << ':'
-    << std::setw(2) << std::setfill('0') << t.seconds().count();
+      << std::setw(2) << std::setfill('0') << t.minutes().count() << ':'
+      << std::setw(2) << std::setfill('0') << t.seconds().count();
   return oss.str();
 };
 
 std::string to_string(const Datetime &dt) {
   std::time_t tt = std::chrono::system_clock::to_time_t(dt);
+#ifdef _WIN32
+  std::tm tm;
+  gmtime_s(&tm, &tt);
+#else
   std::tm tm = *std::gmtime(&tt);
+#endif
   char buf[20];
   std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm);
   return std::string{buf};
@@ -44,16 +49,26 @@ std::string to_string(const Timestamp &ts) {
 bool from_string(std::string_view str, Date &date) {
   int y;
   unsigned int m, d;
-  if (std::sscanf(str.data(), "%d-%u-%u", &y, &m, &d) != 3)
+#ifdef _WIN32
+  if (sscanf_s(str.data(), "%d-%u-%u", &y, &m, &d) != 3) {
+#else
+  if (std::sscanf(str.data(), "%d-%u-%u", &y, &m, &d) != 3) {
+#endif
     return false;
+  }
   date = Date{chrono::year{y}, chrono::month{m}, chrono::day{d}};
   return date.ok();
 }
 
 bool from_string(std::string_view str, Time &t) {
   int h, m, s;
-  if (std::sscanf(str.data(), "%d:%d:%d", &h, &m, &s) != 3)
+#ifdef _WIN32
+  if (sscanf_s(str.data(), "%d:%d:%d", &h, &m, &s) != 3) {
+#else
+  if (std::sscanf(str.data(), "%d:%d:%d", &h, &m, &s) != 3) {
+#endif
     return false;
+  }
   t = Time{chrono::hours{h} + chrono::minutes{m} + chrono::seconds{s}};
   return true;
 }
@@ -96,4 +111,4 @@ std::ostream &operator<<(std::ostream &os, const Datetime &dt) {
 std::ostream &operator<<(std::ostream &os, const Timestamp &ts) {
   return os << to_string(ts);
 }
-}
+} // namespace sqlinq

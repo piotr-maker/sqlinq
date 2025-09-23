@@ -1,6 +1,7 @@
 #ifndef SQLINQ_BACKEND_INTERMEDIATE_STORAGE_HPP_
 #define SQLINQ_BACKEND_INTERMEDIATE_STORAGE_HPP_
 
+#include <cstdint>
 #include <type_traits>
 
 namespace sqlinq {
@@ -12,6 +13,17 @@ public:
   template <typename T> void *allocate(std::size_t count = 1) noexcept {
     static_assert(!std::is_reference_v<T>, "Cannot allocate reference type");
     static_assert(!std::is_void_v<T>, "Cannot allocate void type");
+
+    std::size_t align = alignof(T);
+    std::uintptr_t current = reinterpret_cast<std::uintptr_t>(end_);
+    std::size_t missalignment = current % align;
+    if (missalignment != 0) {
+      std::size_t padding = align - missalignment;
+      if (size() + padding > N) {
+        return nullptr;
+      }
+      end_ += padding;
+    }
 
     std::size_t used = size();
     std::size_t size = count * sizeof(T);
