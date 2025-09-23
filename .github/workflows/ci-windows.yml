@@ -1,0 +1,31 @@
+name: Windows
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  windows:
+    name: Build & Test (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
+          choco install sqlite -y
+      - name: Configure
+        run: >
+          cmake -B build
+          -DSQLINQ_BUILD_TESTS=ON
+          -DCMAKE_BUILD_TYPE=Debug
+          -S ${{ github.workspace }}
+      - name: Build
+        run: cmake --build build --parallel --config Debug
+      - name: Test
+        run: ctest --test-dir build --output-on-failure -C Debug
+    env:
+      SQLINQ_SQLITE_DATABASE: ":memory:"
+
