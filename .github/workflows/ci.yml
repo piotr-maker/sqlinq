@@ -31,8 +31,8 @@ jobs:
           -DSQLINQ_USE_MYSQL=ON
           -DSQLINQ_BUILD_TESTS=ON
           -DSQLINQ_ENABLE_SANITIZERS=ON
-          -DCMAKE_CXX_COMPILER=${{ matrix.c_compiler }}
-          -DCMAKE_C_COMPILER=${{ matrix.cpp_compiler }}
+          -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+          -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
           -DCMAKE_BUILD_TYPE=Debug
           -S ${{ github.workspace }}
       - name: Build
