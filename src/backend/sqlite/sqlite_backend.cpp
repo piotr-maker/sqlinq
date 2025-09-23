@@ -1,4 +1,5 @@
 #include "include/sqlinq/sqlite_backend.hpp"
+#include "sqlinq/backend/backend_iface.hpp"
 #include "sqlinq/config.hpp"
 #include <cassert>
 #include <cstring>
@@ -27,16 +28,16 @@ void fetch_numeric_column(sqlite3_stmt *stmt, const int index,
     *(bool *)(bind.buffer) = (bool)sqlite3_column_int(stmt, index);
     break;
   case column::Type::TinyInt:
-    *(char *)(bind.buffer) = (char)sqlite3_column_int(stmt, index);
+    *(int8_t *)(bind.buffer) = (int8_t)sqlite3_column_int(stmt, index);
     break;
   case column::Type::SmallInt:
-    *(short *)(bind.buffer) = (short)sqlite3_column_int(stmt, index);
+    *(int16_t *)(bind.buffer) = (int16_t)sqlite3_column_int(stmt, index);
     break;
   case column::Type::Int:
-    *(long *)(bind.buffer) = (long)sqlite3_column_int(stmt, index);
+    *(int32_t *)(bind.buffer) = (int32_t)sqlite3_column_int(stmt, index);
     break;
   case column::Type::BigInt:
-    *(long long *)(bind.buffer) = (long long)sqlite3_column_int64(stmt, index);
+    *(int64_t *)(bind.buffer) = (int64_t)sqlite3_column_int64(stmt, index);
     break;
   default:
     break;
@@ -114,8 +115,9 @@ void fetch_datetime_column(sqlite3_stmt *stmt, const int index,
     assert(col_type == SQLITE_TEXT && "Invalid column type");
   }
   if (bind.error != nullptr) {
-    *bind.error = bind.type == column::Type::Timestamp ? col_type == SQLITE_INTEGER
-                                                   : col_type != SQLITE_TEXT;
+    *bind.error = bind.type == column::Type::Timestamp
+                      ? col_type == SQLITE_INTEGER
+                      : col_type != SQLITE_TEXT;
   }
 
   if (bind.is_null != nullptr) {
@@ -180,6 +182,13 @@ void fetch_decimal_column(sqlite3_stmt *stmt, const int index,
   int64_t raw = (long long)sqlite3_column_int64(stmt, index);
   auto decimal = sqlinq::Decimal<18, 0>::from_raw(raw);
   memcpy(bind.buffer, (void *)&decimal, sizeof(decimal));
+}
+
+SQLiteBackend::~SQLiteBackend() {
+  stmt_close();
+  if (db_ != nullptr) {
+    sqlite3_close(db_);
+  }
 }
 
 void SQLiteBackend::bind_params(std::span<BoundValue> params) {
@@ -259,6 +268,7 @@ void SQLiteBackend::connect(const DatabaseConfig &cfg) {
 }
 
 void SQLiteBackend::disconnect() {
+  stmt_close();
   if (db_ != nullptr) {
     sqlite3_close(db_);
     db_ = nullptr;
@@ -338,17 +348,25 @@ ExecStatus SQLiteBackend::stmt_fetch() {
       break;
     }
   }
+
+  ExecStatus status;
   switch (rc) {
   case SQLITE_OK:
-    return ExecStatus::Ok;
+    status = ExecStatus::Ok;
+    break;
   case SQLITE_ROW:
-    return truncated_ == true ? ExecStatus::Truncated : ExecStatus::Row;
+    status = (truncated_ == true) ? ExecStatus::Truncated : ExecStatus::Row;
+    break;
   case SQLITE_DONE:
-    return ExecStatus::NoData;
+    status = ExecStatus::NoData;
+    break;
   default:
+    status = ExecStatus::Error;
+  }
+  if (status == ExecStatus::Error) {
     throw std::runtime_error(sqlite3_errmsg(db_));
   }
-  return ExecStatus::Error;
+  return status;
 }
 
 void SQLiteBackend::stmt_fetch_column(const int index, BindData &bind) {

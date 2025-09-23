@@ -62,11 +62,11 @@ public:
     column::Type type;
     if constexpr (sizeof(Int) == 1) {
       type = column::Type::TinyInt;
-    } else if (sizeof(Int) == 2) {
+    } else if constexpr (sizeof(Int) == 2) {
       type = column::Type::SmallInt;
-    } else if (sizeof(Int) == 4) {
+    } else if constexpr (sizeof(Int) == 4) {
       type = column::Type::Int;
-    } else if (sizeof(Int) == 8) {
+    } else if constexpr (sizeof(Int) == 8) {
       type = column::Type::BigInt;
     }
     bd_[index].type = type;

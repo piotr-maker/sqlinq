@@ -14,7 +14,7 @@ std::from_chars_result from_chars(const char *first, const char *last,
     return {nullptr, std::errc::invalid_argument};
   }
 
-  char sign;
+  char sign{};
   DecimalTraits::value_type value = 0;
   while (first != last && *first != '\0') {
     char c = *first;

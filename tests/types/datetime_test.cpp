@@ -1,6 +1,10 @@
 #include "sqlinq/types/datetime.hpp"
 #include <gtest/gtest.h>
 
+#ifdef _WIN32
+#define timegm _mktimegm
+#endif
+
 using namespace sqlinq;
 
 TEST(DateConversion, ToStringAndFromString) {

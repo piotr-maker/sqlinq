@@ -8,6 +8,16 @@
 #include <sqlinq/backend/intermediate_storage.hpp>
 #include <sqlinq/types.h>
 
+#if defined(MARIADB_VERSION_ID)
+  using my_bool_compat = my_bool;
+#elif defined(MYSQL_VERSION_ID)
+  #if MYSQL_VERSION_ID >= 80002
+    using my_bool_compat = bool;
+  #else
+    using my_bool_compat = my_bool;
+  #endif
+#endif
+
 namespace sqlinq {
 
 constexpr std::size_t MAX_DECIMAL_STR_LEN = 68;
@@ -53,8 +63,15 @@ void map_bind_data(const sqlinq::BindData *bd, MYSQL_BIND *mb) {
   mb->buffer_length = bd->buffer_length;
   mb->buffer_type = map_buffer_type(bd->type);
   mb->length = bd->length;
-  mb->error = (my_bool *)bd->error;
-  mb->is_null = (my_bool *)bd->is_null;
+  mb->error = (my_bool_compat *)bd->error;
+  mb->is_null = (my_bool_compat *)bd->is_null;
+}
+
+MySQLBackend::~MySQLBackend() {
+  stmt_close();
+  if (conn_ != nullptr) {
+    mysql_close(conn_);
+  }
 }
 
 void MySQLBackend::map_bind_result(const sqlinq::BindData *bd, MYSQL_BIND *mb) {
@@ -77,8 +94,8 @@ void MySQLBackend::map_bind_result(const sqlinq::BindData *bd, MYSQL_BIND *mb) {
     mb->length = bd->length;
   }
   mb->buffer_type = map_buffer_type(bd->type);
-  mb->error = (my_bool *)bd->error;
-  mb->is_null = (my_bool *)bd->is_null;
+  mb->error = (my_bool_compat *)bd->error;
+  mb->is_null = (my_bool_compat *)bd->is_null;
 }
 
 void MySQLBackend::bind_params(std::span<BoundValue> params) {
@@ -91,7 +108,7 @@ void MySQLBackend::bind_params(std::span<BoundValue> params) {
     bind[i].buffer_type = map_buffer_type(p.type());
     switch (p.type()) {
     case column::Type::Null: {
-      bind[i].is_null = (my_bool *)storage_.allocate<my_bool>(1);
+      bind[i].is_null = (my_bool_compat *)storage_.allocate<my_bool_compat>(1);
       *bind[i].is_null = 1;
       break;
     }
@@ -181,12 +198,12 @@ void MySQLBackend::bind_params(std::span<BoundValue> params) {
 void MySQLBackend::bind_result(const BindData *bd, const std::size_t size) {
   bind_ = bd;
   bind_size_ = size;
-  result_ = mysql_stmt_result_metadata(stmt_);
-  if (result_ == nullptr) {
+  MYSQL_RES *meta = mysql_stmt_result_metadata(stmt_);
+  if (meta == nullptr) {
     throw std::runtime_error(mysql_stmt_error(stmt_));
   }
 
-  assert(mysql_num_fields(result_) == size &&
+  assert(mysql_num_fields(meta) == size &&
          "MySQLBackend::bind_result(): Invalid column count");
   my_bind_ = std::make_unique<MYSQL_BIND[]>(size);
   memset(my_bind_.get(), 0, sizeof(MYSQL_BIND) * size);
@@ -194,13 +211,15 @@ void MySQLBackend::bind_result(const BindData *bd, const std::size_t size) {
     map_bind_result(&bd[i], &my_bind_[i]);
   }
   if (mysql_stmt_bind_result(stmt_, my_bind_.get())) {
+    mysql_free_result(meta);
     throw std::runtime_error(mysql_stmt_error(stmt_));
   }
+  mysql_free_result(meta);
 }
 
 void MySQLBackend::connect(const DatabaseConfig &cfg) {
-  db_ = mysql_init(NULL);
-  if (db_ == nullptr) {
+  mysql_ = mysql_init(NULL);
+  if (mysql_ == nullptr) {
     throw std::bad_alloc();
   }
 
@@ -209,33 +228,30 @@ void MySQLBackend::connect(const DatabaseConfig &cfg) {
   auto user = cfg.user;
   auto pass = cfg.passwd;
   auto db = cfg.database;
-  db_ = mysql_real_connect(db_, host.c_str(), user.c_str(), pass.c_str(),
+  conn_ = mysql_real_connect(mysql_, host.c_str(), user.c_str(), pass.c_str(),
                            db.c_str(), port, NULL, 0);
-  if (db_ == nullptr) {
+  if (conn_ == nullptr) {
+    mysql_close(mysql_);
     throw(std::runtime_error("MySQL connection failed " +
-                             std::string(mysql_error(db_))));
+                             std::string(mysql_error(conn_))));
   }
 }
 
 void MySQLBackend::disconnect() {
-  if (db_ != nullptr) {
-    mysql_close(db_);
-    db_ = nullptr;
+  stmt_close();
+  if (conn_ != nullptr) {
+    mysql_close(conn_);
+    conn_ = nullptr;
   }
 }
 
 uint64_t MySQLBackend::last_inserted_rowid() const noexcept {
-  return mysql_insert_id(db_);
+  return mysql_insert_id(conn_);
 }
 
 void MySQLBackend::stmt_close() {
   my_bind_.reset();
   storage_.clear();
-  if (result_ != nullptr) {
-    mysql_stmt_free_result(stmt_);
-    result_ = nullptr;
-  }
-
   if (stmt_ != nullptr) {
     mysql_stmt_close(stmt_);
     stmt_ = nullptr;
@@ -330,7 +346,7 @@ ExecStatus MySQLBackend::stmt_fetch() {
 }
 
 void MySQLBackend::stmt_init() {
-  stmt_ = mysql_stmt_init(db_);
+  stmt_ = mysql_stmt_init(conn_);
   if (stmt_ == nullptr) {
     throw std::bad_alloc();
   }

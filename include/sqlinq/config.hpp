@@ -86,7 +86,7 @@ parse_config_file(std::string_view fname) {
 
 inline std::optional<std::string> get_env_var(std::string_view key) {
 #ifdef _WIN32
-  char* buf = nullptr;
+  char *buf = nullptr;
   size_t sz = 0;
   if (_dupenv_s(&buf, &sz, std::string(key).c_str()) == 0 && buf != nullptr) {
     std::string val(buf);
@@ -107,25 +107,32 @@ parse_env_config(const std::vector<std::string> &sections,
                  std::string_view prefix = "SQLINQ") {
   std::map<std::string, DatabaseConfig> cfg;
 
-  for (const auto &sec : sections) {
+  for (const auto &section : sections) {
     DatabaseConfig dbc;
-    auto to_key = [&](std::string_view key) {
+    auto to_key = [&](std::string sec, std::string_view key) {
+      std::transform(
+          sec.begin(), sec.end(), sec.begin(),
+          [](const char c) -> char { return static_cast<char>(toupper(c)); });
       return std::string(prefix) + "_" + sec + "_" + std::string(key);
     };
 
-    if (auto host = get_env_var(to_key("HOST"))) {
+    if (auto host = get_env_var(to_key(section, "HOST"))) {
       dbc.host = *host;
-    } else if (auto port = get_env_var(to_key("PORT"))) {
+    }
+    if (auto port = get_env_var(to_key(section, "PORT"))) {
       dbc.port = std::stoi(*port);
-    } else if (auto user = get_env_var(to_key("USER"))) {
+    }
+    if (auto user = get_env_var(to_key(section, "USER"))) {
       dbc.user = *user;
-    } else if (auto passwd = get_env_var(to_key("PASSWORD"))) {
+    }
+    if (auto passwd = get_env_var(to_key(section, "PASSWORD"))) {
       dbc.passwd = *passwd;
-    } else if (auto db = get_env_var(to_key("DATABASE"))) {
+    }
+    if (auto db = get_env_var(to_key(section, "DATABASE"))) {
       dbc.database = *db;
     }
 
-    cfg[sec] = std::move(dbc);
+    cfg[section] = std::move(dbc);
   }
   return cfg;
 }

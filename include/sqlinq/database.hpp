@@ -50,6 +50,7 @@ public:
     backend_.stmt_prepare(std::string_view{query.data(), query.size()});
     backend_.bind_params(std::span{params.data(), params.size()});
     backend_.stmt_execute();
+    backend_.stmt_close();
     entity.id = static_cast<int>(backend_.last_inserted_rowid());
     return entity;
   }
@@ -123,6 +124,7 @@ public:
     backend_.stmt_prepare(std::string_view{query.data(), query.size()});
     backend_.bind_params(std::span{params.data(), params.size()});
     backend_.stmt_execute();
+    backend_.stmt_close();
   }
 
   template <typename Entity> void update(const Entity &entity) {
@@ -155,6 +157,7 @@ public:
     backend_.stmt_prepare(std::string_view{query.data(), query.size()});
     backend_.bind_params(std::span{params.data(), params.size()});
     backend_.stmt_execute();
+    backend_.stmt_close();
   }
 
   uint64_t last_inserted_rowid() const noexcept {
@@ -170,6 +173,7 @@ public:
     backend_.stmt_prepare(sql);
     backend_.bind_params(std::span{params.data(), params.size()});
     backend_.stmt_execute();
+    backend_.stmt_close();
   }
 
   template <typename Entity> void execute(WhereQuery<Entity> &q) {
@@ -185,6 +189,7 @@ public:
     backend_.stmt_prepare(sql);
     backend_.bind_params(std::span{params.data(), params.size()});
     backend_.stmt_execute();
+    backend_.stmt_close();
   }
 
   template <typename Entity, typename... Ts>

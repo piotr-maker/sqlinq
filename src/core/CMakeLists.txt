@@ -11,7 +11,7 @@ target_include_directories(sqlinq-core PUBLIC
 target_compile_features(sqlinq-core PUBLIC cxx_std_20)
 
 target_compile_options(sqlinq-core PRIVATE
-  $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>
+  $<$<CXX_COMPILER_ID:MSVC>:/W4>
   $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic -Wshadow -Wconversion
                                    -Wunused -Wuninitialized>
 )
