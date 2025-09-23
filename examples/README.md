@@ -69,7 +69,7 @@ These examples demonstrate more advanced SQLinq usage, including:
 ```
 3. Run the examples:
 ```sh
-./examples/advanced
+./examples/advanced /path/to/databse/config
 ```
 
 ## Notes

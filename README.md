@@ -1,3 +1,5 @@
+![Linux](https://github.com/piotr-maker/sqlinq/actions/workflows/ci-linux.yml/badge.svg) ![macOS](https://github.com/piotr-maker/sqlinq/actions/workflows/ci-macos.yml/badge.svg) ![Windows](https://github.com/piotr-maker/sqlinq/actions/workflows/ci-windows.yml/badge.svg)
+
 # SQLinq - SQL Query Library in C++
 
 SQLinq is a modern C++ library that enables easy and type-safe integration with SQL databases.
@@ -7,6 +9,14 @@ With SQLinq, you can:
 - Use it as a lightweight ORM with create, find, get_all, update, remove
 - Write aggregate queries (count, sum, avg, …)
 - Stay type-safe thanks to lambdas and member pointers (no raw SQL strings)
+
+## Database Connection
+
+Database connection can be configured either via:
+- Environment variables
+- Configuration file (`db.conf`)
+
+For full instructions, see the [Configuration Guide](doc/config/README.md).
 
 ## Defining tables
 
@@ -107,6 +117,8 @@ int main() {
   }
 }
 ```
+For complete runnable examples demonstrating both SQLite and MySQL backends, see [Examples](examples/README.md)
+
 ## Roadmap
 Planned features and improvements for SQLinq:
 
