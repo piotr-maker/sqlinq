@@ -2,7 +2,7 @@
 #include <gtest/gtest.h>
 
 #ifdef _WIN32
-#define timegm _mktimegm
+#define timegm _mkgmtime
 #endif
 
 using namespace sqlinq;
