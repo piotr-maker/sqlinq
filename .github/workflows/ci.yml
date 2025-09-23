@@ -11,8 +11,14 @@ jobs:
     name: Build & Test (Linux)
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        compiler: [gcc, clang]
+        c_compiler: [gcc, clang]
+        include:
+          - c_compiler: gcc
+            cpp_compiler: g++
+          - c_compiler: clang
+            cpp_compiler: clang++
     steps:
       - uses: actions/checkout@v3
       - name: Install dependencies (Linux)
@@ -25,8 +31,8 @@ jobs:
           -DSQLINQ_USE_MYSQL=ON
           -DSQLINQ_BUILD_TESTS=ON
           -DSQLINQ_ENABLE_SANITIZERS=ON
-          -DCMAKE_CXX_COMPILER=${{ matrix.compiler }}
-          -DCMAKE_C_COMPILER=${{ matrix.compiler }}
+          -DCMAKE_CXX_COMPILER=${{ matrix.c_compiler }}
+          -DCMAKE_C_COMPILER=${{ matrix.cpp_compiler }}
           -DCMAKE_BUILD_TYPE=Debug
           -S ${{ github.workspace }}
       - name: Build
