@@ -2,23 +2,37 @@ name: CMake on multiple platforms
 
 on:
   push:
-    branches: [ "master", "feature/*", "ci/" ]
+    branches: [ "master", "feature/*", "ci/*" ]
   pull_request:
+    branches: [ "master" ]
 
 jobs:
-  build-linux:
+  linux:
+    name: Build & Test (Linux)
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
-        build_type: [Debug]
-        c_compiler: [gcc, clang]
-        include:
-          - c_compiler: gcc
-            cpp_compiler: g++
-          - c_compiler: clang
-            cpp_compiler: clang++
-
+        compiler: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install dependencies (Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git libsqlite3-dev libmysqlclient-dev
+      - name: Configure
+        run: >
+          cmake -B build
+          -DSQLINQ_USE_MYSQL=ON
+          -DSQLINQ_BUILD_TESTS=ON
+          -DSQLINQ_ENABLE_SANITIZERS=ON
+          -DCMAKE_CXX_COMPILER=${{ matrix.compiler }}
+          -DCMAKE_C_COMPILER=${{ matrix.compiler }}
+          -DCMAKE_BUILD_TYPE=Debug
+          -S ${{ github.workspace }}
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
     services:
       mysql:
         image: mysql:8
@@ -32,7 +46,6 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=3
-
     env:
       SQLINQ_MYSQL_HOST: 127.0.0.1
       SQLINQ_MYSQL_USER: root
@@ -40,97 +53,48 @@ jobs:
       SQLINQ_MYSQL_DATABASE: personnel
       SQLINQ_SQLITE_DATABASE: ":memory:"
 
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Set reusable strings
-        id: strings
-        shell: bash
-        run: |
-          echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
-
-      - name: Install dependencies (Linux)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential cmake git libsqlite3-dev libmysqlclient-dev
-
-      - name: Configure CMake
-        run: >
-          cmake -B ${{ steps.strings.outputs.build-output-dir }}
-          -DSQLINQ_USE_MYSQL=ON
-          -DSQLINQ_BUILD_TESTS=ON
-          -DSQLINQ_ENABLE_SANITIZERS=ON
-          -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
-          -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
-          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-          -S ${{ github.workspace }}
-
-      - name: Build
-        run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
-
-      - name: Test
-        working-directory: ${{ steps.strings.outputs.build-output-dir }}
-        run: ctest --build-config ${{ matrix.build_type }}
-
-  build:
-    runs-on: ${{ matrix.os }}
+  macos:
+    name: Build & Test (macOS)
+    runs-on: macos-latest
     strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, windows-latest]
-        build_type: [Debug]
-        c_compiler: [clang, cl]
-        include:
-          - os: windows-latest
-            c_compiler: cl
-            cpp_compiler: cl
-          - os: macos-latest
-            c_compiler: clang
-            cpp_compiler: clang++
-        exclude:
-          - os: windows-latest
-            c_compiler: clang
-          - os: macos-latest
-            c_compiler: cl
-
-    env:
-      SQLINQ_SQLITE_DATABASE: ":memory:"
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install dependencies (macOS)
-        if: matrix.os == 'macos-latest'
+      - name: Install dependencies
         run: |
           brew update
           brew install cmake sqlite
+      - name: Configure
+        run: >
+          cmake -B build
+          -DSQLINQ_BUILD_TESTS=ON
+          -DCMAKE_BUILD_TYPE=Debug
+          -S ${{ github.workspace }}
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+    env:
+      SQLINQ_SQLITE_DATABASE: ":memory:"
 
-      - name: Install dependencies (Windows)
-        if: matrix.os == 'windows-latest'
+  windows:
+    name: Build & Test (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
         run: |
           choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
           choco install sqlite -y
-
-      - name: Set reusable strings
-        id: strings
-        shell: bash
-        run: |
-          echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
-
-      - name: Configure CMake
+      - name: Configure
         run: >
-          cmake -B ${{ steps.strings.outputs.build-output-dir }}
+          cmake -B build
           -DSQLINQ_BUILD_TESTS=ON
-          -DSQLINQ_BUILD_EXAMPLES=ON
-          -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
-          -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
-          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DCMAKE_BUILD_TYPE=Debug
           -S ${{ github.workspace }}
-
       - name: Build
-        run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
-
+        run: cmake --build build --parallel --config Debug
       - name: Test
-        working-directory: ${{ steps.strings.outputs.build-output-dir }}
-        run: ctest --build-config ${{ matrix.build_type }}
+        run: ctest --test-dir build --output-on-failure -C Debug
+    env:
+      SQLINQ_SQLITE_DATABASE: ":memory:"
 
