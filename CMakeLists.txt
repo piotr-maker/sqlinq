@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(sqlinq VERSION 0.2.0)
+project(sqlinq VERSION 0.2.1)
 #configure_file(config.hpp.in include/sqlinq/config.hpp @ONLY)
 
 set(CMAKE_CXX_STANDARD 20)
