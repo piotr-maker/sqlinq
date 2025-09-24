@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
     auto q = sqlinq::Query<Jobs>()
                  .select_all()
                  .order_by(&Jobs::max_salary)
-                 .where([](const auto &job) { return job.id > 8; });
+                 .where([&](const auto &job) { return job.id > 8; });
     std::vector<Jobs> jobs;
     try {
       jobs = db.to_vector(q);
@@ -77,8 +77,9 @@ int main(int argc, char *argv[]) {
 
   // update employee
   {
+    std::string phone = "515.123.4568";
     auto q = sqlinq::Query<Employees>()
-                 .update([](auto &e) { e.phone_number = "515.123.4568"; })
+                 .update([&](auto &e) { e.phone_number = phone; })
                  .where([](const auto &e) { return e.id == 100; });
     try {
       db.execute(q);

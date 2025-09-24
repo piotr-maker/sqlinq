@@ -34,6 +34,11 @@ public:
     state_ = Set;
   }
 
+  void operator=(const value_t &v) noexcept {
+    value_ = v;
+    state_ = Set;
+  }
+
   template <typename U = T, typename = std::enable_if<detail::is_optional_v<U>>>
   FilterChain operator==(std::nullopt_t) const noexcept {
     return {FilterExpr::Kind::Leaf,
@@ -47,38 +52,34 @@ public:
         ValueCondition{ValueCondition::Operator::NotEqual, BoundValue{}, Idx}};
   }
 
-  FilterChain operator==(value_t &&v) const noexcept {
+  FilterChain operator==(const value_t &v) const noexcept {
     return {FilterExpr::Kind::Leaf,
-            ValueCondition{ValueCondition::Operator::Equal, std::move(v), Idx}};
+            ValueCondition{ValueCondition::Operator::Equal, v, Idx}};
   }
 
-  FilterChain operator!=(value_t &&v) const noexcept {
-    return {
-        FilterExpr::Kind::Leaf,
-        ValueCondition{ValueCondition::Operator::NotEqual, std::move(v), Idx}};
-  }
-
-  FilterChain operator<(value_t &&v) const noexcept {
+  FilterChain operator!=(const value_t &v) const noexcept {
     return {FilterExpr::Kind::Leaf,
-            ValueCondition{ValueCondition::Operator::Less, std::move(v), Idx}};
+            ValueCondition{ValueCondition::Operator::NotEqual, v, Idx}};
   }
 
-  FilterChain operator<=(value_t &&v) const noexcept {
-    return {
-        FilterExpr::Kind::Leaf,
-        ValueCondition{ValueCondition::Operator::LessEqual, std::move(v), Idx}};
-  }
-
-  FilterChain operator>(value_t &&v) const noexcept {
-    return {
-        FilterExpr::Kind::Leaf,
-        ValueCondition{ValueCondition::Operator::Greater, std::move(v), Idx}};
-  }
-
-  FilterChain operator>=(value_t &&v) const noexcept {
+  FilterChain operator<(const value_t &v) const noexcept {
     return {FilterExpr::Kind::Leaf,
-            ValueCondition{ValueCondition::Operator::GreaterEqual, std::move(v),
-                           Idx}};
+            ValueCondition{ValueCondition::Operator::Less, v, Idx}};
+  }
+
+  FilterChain operator<=(const value_t &v) const noexcept {
+    return {FilterExpr::Kind::Leaf,
+            ValueCondition{ValueCondition::Operator::LessEqual, v, Idx}};
+  }
+
+  FilterChain operator>(const value_t &v) const noexcept {
+    return {FilterExpr::Kind::Leaf,
+            ValueCondition{ValueCondition::Operator::Greater, v, Idx}};
+  }
+
+  FilterChain operator>=(const value_t &v) const noexcept {
+    return {FilterExpr::Kind::Leaf,
+            ValueCondition{ValueCondition::Operator::GreaterEqual, v, Idx}};
   }
 
 private:
