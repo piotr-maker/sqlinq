@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
     auto q = sqlinq::Query<Jobs>()
                  .select_all()
                  .order_by(&Jobs::max_salary)
-                 .where([&](const auto &job) { return job.id > 8; });
+                 .where([](const auto &job) { return job.id > 8; });
     std::vector<Jobs> jobs;
     try {
       jobs = db.to_vector(q);
