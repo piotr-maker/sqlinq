@@ -39,8 +39,7 @@ int main() {
   }
 
   // Get all records
-  auto jobs = db.get_all<Jobs>();
-  for (auto &j : jobs) {
+  for (auto &j : db.get_all<Jobs>()) {
     std::cout << j.id << ' ' << j.title << '\n';
   }
 
