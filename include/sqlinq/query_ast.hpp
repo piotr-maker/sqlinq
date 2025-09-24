@@ -55,27 +55,27 @@ public:
       : type_(type), ptr_(ptr), size_(size) {}
 
   constexpr BoundValue(int8_t v)
-      : type_(column::Type::TinyInt), tiny_(std::move(v)), ptr_(nullptr),
+      : type_(column::Type::TinyInt), tiny_(v), ptr_(nullptr),
         size_(0) {}
 
   constexpr BoundValue(int16_t v)
-      : type_(column::Type::SmallInt), short_(std::move(v)), ptr_(nullptr),
+      : type_(column::Type::SmallInt), short_(v), ptr_(nullptr),
         size_(0) {}
 
   constexpr BoundValue(int32_t v)
-      : type_(column::Type::Int), long_(std::move(v)), ptr_(nullptr), size_(0) {
+      : type_(column::Type::Int), long_(v), ptr_(nullptr), size_(0) {
   }
 
   constexpr BoundValue(int64_t v)
-      : type_(column::Type::BigInt), longlong_(std::move(v)), ptr_(nullptr),
+      : type_(column::Type::BigInt), longlong_(v), ptr_(nullptr),
         size_(0) {}
 
   constexpr BoundValue(float v)
-      : type_(column::Type::Float), float_(std::move(v)), ptr_(nullptr),
+      : type_(column::Type::Float), float_(v), ptr_(nullptr),
         size_(0) {}
 
   constexpr BoundValue(double v)
-      : type_(column::Type::Double), double_(std::move(v)), ptr_(nullptr),
+      : type_(column::Type::Double), double_(v), ptr_(nullptr),
         size_(0) {}
 
   template <std::size_t P, std::size_t S>
@@ -84,19 +84,19 @@ public:
         ptr_(nullptr), size_(S) {}
 
   constexpr BoundValue(Date v)
-      : type_(column::Type::Date), date_(std::move(v)), ptr_(nullptr),
+      : type_(column::Type::Date), date_(v), ptr_(nullptr),
         size_(0) {}
 
   constexpr BoundValue(Time v)
-      : type_(column::Type::Time), time_(std::move(v)), ptr_(nullptr),
+      : type_(column::Type::Time), time_(v), ptr_(nullptr),
         size_(0) {}
 
   constexpr BoundValue(Datetime v)
-      : type_(column::Type::Datetime), datetime_(std::move(v)), ptr_(nullptr),
+      : type_(column::Type::Datetime), datetime_(v), ptr_(nullptr),
         size_(0) {}
 
   constexpr BoundValue(Timestamp v)
-      : type_(column::Type::Timestamp), timestamp_(std::move(v)), ptr_(nullptr),
+      : type_(column::Type::Timestamp), timestamp_(v), ptr_(nullptr),
         size_(0) {}
 
   BoundValue(const std::string &str) noexcept
