@@ -8,8 +8,8 @@ namespace sqlinq {
 class SQLiteBackend final : public BackendIface {
 public:
   explicit SQLiteBackend()
-      : db_(nullptr), stmt_(nullptr), truncated_(false), omit_step_(true),
-        bind_(nullptr), bind_size_(0) {}
+      : db_(nullptr), stmt_(nullptr), truncated_(false), bind_(nullptr),
+        bind_size_(0), stmt_exec_status_(ExecStatus::Ok) {}
 
   ~SQLiteBackend();
 
@@ -33,9 +33,9 @@ private:
   sqlite3 *db_;
   sqlite3_stmt *stmt_;
   bool truncated_;
-  bool omit_step_;
   const BindData *bind_;
   std::size_t bind_size_;
+  ExecStatus stmt_exec_status_;
 };
 } // namespace sqlinq
 

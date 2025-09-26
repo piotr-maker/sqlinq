@@ -289,16 +289,23 @@ void SQLiteBackend::stmt_close() {
 
 ExecStatus SQLiteBackend::stmt_execute() {
   int rc = sqlite3_step(stmt_);
+  ExecStatus status = ExecStatus::Ok;
   switch (rc) {
   case SQLITE_OK:
-  case SQLITE_DONE:
-    return ExecStatus::Ok;
   case SQLITE_ROW:
-    omit_step_ = true;
-    return ExecStatus::Ok;
+    stmt_exec_status_ = ExecStatus::Ok;
+    break;
+  case SQLITE_DONE:
+    stmt_exec_status_ = ExecStatus::NoData;
+    break;
   default:
+    status = stmt_exec_status_ = ExecStatus::Error;
+  }
+
+  if (status == ExecStatus::Error) {
     throw std::runtime_error(sqlite3_errmsg(db_));
   }
+  return status;
 }
 
 ExecStatus SQLiteBackend::stmt_fetch() {
@@ -307,10 +314,14 @@ ExecStatus SQLiteBackend::stmt_fetch() {
     return ExecStatus::Error;
   }
 
-  if (!omit_step_) {
+  if (stmt_exec_status_ == ExecStatus::Ok) {
+    stmt_exec_status_ = ExecStatus::Row;
+  } else if (stmt_exec_status_ == ExecStatus::Row) {
     rc = sqlite3_step(stmt_);
+  } else if (stmt_exec_status_ != ExecStatus::Ok) {
+    return stmt_exec_status_;
   }
-  omit_step_ = false;
+
   truncated_ = false;
   for (int index = 0; index < static_cast<int>(bind_size_); index++) {
     const BindData *bind = &bind_[index];
