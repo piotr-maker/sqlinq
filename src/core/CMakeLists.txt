@@ -5,7 +5,8 @@ add_library(sqlinq-core
 )
 
 target_include_directories(sqlinq-core PUBLIC
-  ${CMAKE_SOURCE_DIR}/include
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../include>
+  $<INSTALL_INTERFACE:include>
 )
 
 target_compile_features(sqlinq-core PUBLIC cxx_std_20)

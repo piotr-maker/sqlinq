@@ -38,7 +38,8 @@ add_library(mysql-backend
 )
 
 target_include_directories(mysql-backend PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
 )
 
 target_link_libraries(mysql-backend
