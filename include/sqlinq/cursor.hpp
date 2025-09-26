@@ -99,6 +99,38 @@ public:
     bd_[index].error = &error_[index];
   }
 
+  void column(const int index, Date &value) noexcept {
+    bd_[index].type = column::Type::Date;
+    bd_[index].buffer = (void *)&value;
+    bd_[index].is_null = &is_null_[index];
+    bd_[index].length = 0;
+    bd_[index].error = &error_[index];
+  }
+
+  void column(const int index, Time &value) noexcept {
+    bd_[index].type = column::Type::Time;
+    bd_[index].buffer = (void *)&value;
+    bd_[index].is_null = &is_null_[index];
+    bd_[index].length = 0;
+    bd_[index].error = &error_[index];
+  }
+
+  void column(const int index, Datetime &value) noexcept {
+    bd_[index].type = column::Type::Datetime;
+    bd_[index].buffer = (void *)&value;
+    bd_[index].is_null = &is_null_[index];
+    bd_[index].length = 0;
+    bd_[index].error = &error_[index];
+  }
+
+  void column(const int index, Timestamp &value) noexcept {
+    bd_[index].type = column::Type::Timestamp;
+    bd_[index].buffer = (void *)&value;
+    bd_[index].is_null = &is_null_[index];
+    bd_[index].length = 0;
+    bd_[index].error = &error_[index];
+  }
+
   template <typename T>
   inline void fetch(const int index, std::optional<T> &val) noexcept {
     if (is_null_[index]) {
