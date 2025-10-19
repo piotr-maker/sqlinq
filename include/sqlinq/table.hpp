@@ -178,6 +178,11 @@ public:
                                       opts_ | column::Options::AutoIncrement};
   }
 
+  [[nodiscard]] constexpr auto foreign_key() noexcept {
+    return ColumnMeta<Class, T, IsPk>{member_, name_, offset_,
+                                      opts_ | column::Options::ForeignKey};
+  }
+
   [[nodiscard]] constexpr auto primary_key() noexcept {
     return ColumnMeta<Class, T, true>{member_, name_, offset_,
                                       opts_ | column::Options::PrimaryKey};

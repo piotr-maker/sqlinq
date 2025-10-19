@@ -55,6 +55,43 @@ This approach is explicit and flexible:
 - You can decide how struct fields map to SQL column name.
 - You can declare primary_key, autoincrement, unique and more.
 - In future metadata can also be used for automatic schema generation.
+
+---
+
+### Automatic table generation (optional)
+
+In addition to manual table definitions, SQLinq can **automatically generate**  
+C++ table metadata and Atlas schemas from annotated structs.
+
+You can define a struct with modern C++ attributes:
+
+```cpp
+struct [[table("comments")]] Comment {
+  [[name("comment_id"), autoincrement, primary_key]]
+  int id;
+  [[foreign_key("posts.post_id")]]
+  int post_id;
+  std::string author;
+  std::string content;
+};
+```
+These annotated structures are discovered automatically during the CMake build
+and converted into:
+- `generated/include/table_schema.hpp` — for C++ queries
+- `generated/schema.my.hcl` — for database migrations with Atlas
+
+To enable automatic schema generation, add to your `CMakeLists.txt` at the end of file:
+```cmake
+sqlinq_init_venv()
+sqlinq_generate_schema()
+```
+Then simply include the generated header:
+```cpp
+#include "table_schema.hpp"
+```
+For details on automatic generation, see [SQLinq Table Definitions](doc/tables/README.md).
+For migration workflow, see [Configuration Guide](doc/migrations/README.md).
+
 ## Usage
 
 ### ORM-style (CRUD operations)
