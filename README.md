@@ -10,6 +10,17 @@ With SQLinq, you can:
 - Write aggregate queries (count, sum, avg, …)
 - Stay type-safe thanks to lambdas and member pointers (no raw SQL strings)
 
+## Demo Project
+
+A full demo application using SQLinq is available here: 
+[SQLinq Blog Demo](https://github.com/piotr-maker/sqlinq-blog-demo.git)
+
+It shows:
+- Automatic schema generation
+- Setting up SQLinq with SQLite
+- Fluent query composition with LINQ-style API
+- Integration with CMake and configuration files
+
 ## Database Connection
 
 Database connection can be configured either via:
@@ -189,6 +200,7 @@ Planned features and improvements for SQLinq:
 ## Requirements
 * C++20 or higher
 * CMake version 3.16 or higher
+* Python 3.11 (Schema generation)
 * SQL database development package installed (MySQL, SQLite3)
   _If SQLite3 is not installed system-wide, the library will automatically download and build it using CMake FetchContent_
 
