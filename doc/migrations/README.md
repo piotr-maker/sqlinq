@@ -31,20 +31,12 @@ generated/schema.lt.hcl
 atlas migrate diff \
   --dir "file://migrations/sqlite" \
   --to "file://build/generated/schema.lt.hcl" \
-  --dev-url "sqlite://db.sqlite"
+  --dev-url "sqlite://file?mode=memory"
 ```
 
-### 3. Generate migration files
+### 3. Apply migrations
 ```bash
-atlas migrate diff \
-  --dir "file://migrations/sqlite" \
-  --to "sqlite://db.sqlite" \
-  --from "file://build/generated/schema.lt.hcl"
-```
-
-### 4. Apply migrations
-```bash
-atlas schema apply \
+atlas migrate apply \
     --dir "file://migrations/sqlite" \
     --url "sqlite://db.sqlite"
 ```
@@ -53,11 +45,12 @@ atlas schema apply \
 | Step             | Command               | Description                      |
 | ---------------- | --------------------- | -------------------------------- |
 | Generate schemas | `cmake --build .`     | Produces HCL & header files      |
-| Diff schemas     | `atlas schema diff`   | Compare generated schema with DB |
 | Create migration | `atlas migrate diff`  | Generate migration SQL           |
 | Apply migration  | `atlas migrate apply` | Apply SQL to database            |
 
-**Tip**: You can validate generated HCL syntax with:
+**Tip**: You can validate generated HCL syntax with (Atlas PRO):
 ```bash
-atlas schema lint --path file://build/generated/schema.lt.hcl
+atlas schema lint \
+    --url "file://build/generated/schema.lt.hcl" \
+    --dev-url "sqlite://file?mode=memory"
 ```
