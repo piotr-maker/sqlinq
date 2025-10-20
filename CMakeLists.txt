@@ -5,13 +5,20 @@ project(sqlinq VERSION 0.2.1)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
+include(cmake/sqlinq.cmake)
 include(cmake/sanitizers.cmake)
+include(cmake/schema_generator.cmake)
 option(SQLINQ_BUILD_TESTS "Build tests" OFF)
 option(SQLINQ_BUILD_EXAMPLES "Build examples" OFF)
 
 # Backend options
 option(SQLINQ_USE_SQLITE "Enable SQLite backend" ON)
 option(SQLINQ_USE_MYSQL "Enable MySQL backend" OFF)
+
+set(SQLINQ_SCHEMA_NAME "default" CACHE STRING "Database schema name for SQLinq")
+function(sqlinq_generate_schema)
+  sqlinq_generate_schema_auto(OUT_DIR ${CMAKE_BINARY_DIR}/generated)
+endfunction()
 
 if(SQLINQ_BUILD_TESTS)
   enable_testing()

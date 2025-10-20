@@ -10,6 +10,17 @@ With SQLinq, you can:
 - Write aggregate queries (count, sum, avg, …)
 - Stay type-safe thanks to lambdas and member pointers (no raw SQL strings)
 
+## Demo Project
+
+A full demo application using SQLinq is available here: 
+[SQLinq Blog Demo](https://github.com/piotr-maker/sqlinq-blog-demo.git)
+
+It shows:
+- Automatic schema generation
+- Setting up SQLinq with SQLite
+- Fluent query composition with LINQ-style API
+- Integration with CMake and configuration files
+
 ## Database Connection
 
 Database connection can be configured either via:
@@ -55,6 +66,43 @@ This approach is explicit and flexible:
 - You can decide how struct fields map to SQL column name.
 - You can declare primary_key, autoincrement, unique and more.
 - In future metadata can also be used for automatic schema generation.
+
+---
+
+### Automatic table generation (optional)
+
+In addition to manual table definitions, SQLinq can **automatically generate**  
+C++ table metadata and Atlas schemas from annotated structs.
+
+You can define a struct with modern C++ attributes:
+
+```cpp
+struct [[table("comments")]] Comment {
+  [[name("comment_id"), autoincrement, primary_key]]
+  int id;
+  [[foreign_key("posts.post_id")]]
+  int post_id;
+  std::string author;
+  std::string content;
+};
+```
+These annotated structures are discovered automatically during the CMake build
+and converted into:
+- `generated/include/table_schema.hpp` — for C++ queries
+- `generated/schema.my.hcl` — for database migrations with Atlas
+
+To enable automatic schema generation, add to your `CMakeLists.txt` at the end of file:
+```cmake
+sqlinq_init_venv()
+sqlinq_generate_schema()
+```
+Then simply include the generated header:
+```cpp
+#include "table_schema.hpp"
+```
+For details on automatic generation, see [SQLinq Table Definitions](doc/tables/README.md).
+For migration workflow, see [Configuration Guide](doc/migrations/README.md).
+
 ## Usage
 
 ### ORM-style (CRUD operations)
@@ -152,6 +200,7 @@ Planned features and improvements for SQLinq:
 ## Requirements
 * C++20 or higher
 * CMake version 3.16 or higher
+* Python 3.11 (Schema generation)
 * SQL database development package installed (MySQL, SQLite3)
   _If SQLite3 is not installed system-wide, the library will automatically download and build it using CMake FetchContent_
 
